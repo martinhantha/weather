@@ -4,6 +4,17 @@ export default defineNuxtConfig({
 	runtimeConfig: {
 		mongoUrl: process.env.MONGODB_URI,
 		apiSecret: process.env.API_SECRET,
+		public: {
+			apiUrl: process.env.API_URL,
+		},
+		app: {
+			baseURL: '/',
+		},
+	},
+	devServer: {
+		host: {
+			url: process.env.API_URL,
+		},
 	},
 	nitro: {
 		plugins: ['~/server/index.ts'],

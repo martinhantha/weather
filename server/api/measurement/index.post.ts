@@ -4,7 +4,7 @@ interface IRequestBody {
 }
 export default defineEventHandler(async (event) => {
 	const body = await readBody(event)
-	if (body.json)
+	if (body.json) {
 		try {
 			const newMeasurementData = await measurement.create({
 				json: body.json,
@@ -21,4 +21,5 @@ export default defineEventHandler(async (event) => {
 				message: 'Something wrong.',
 			}
 		}
+	}
 })

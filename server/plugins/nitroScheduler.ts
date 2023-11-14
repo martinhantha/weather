@@ -26,5 +26,4 @@ async function readSaveMeasurement() {
 			json: response,
 		},
 	})
-	console.log(responseData)
 }
