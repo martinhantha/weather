@@ -20,4 +20,11 @@ export default defineNuxtConfig({
 		plugins: ['~/server/index.ts'],
 	},
 	modules: ['nuxt-scheduler'],
+	css: ['~/assets/css/main.css'],
+	postcss: {
+		plugins: {
+			tailwindcss: {},
+			autoprefixer: {},
+		},
+	},
 })
