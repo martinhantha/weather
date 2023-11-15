@@ -2,7 +2,7 @@
 const { data: measurement, refresh } = await useFetch('/api/measurement')
 setInterval(() => {
 	refresh()
-}, 5000)
+}, 2000)
 </script>
 <template>
 	{{ measurement }}

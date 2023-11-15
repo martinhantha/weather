@@ -7,7 +7,16 @@ export default defineEventHandler(async (event) => {
 
 	if (body.json) {
 		const d = new Date(),
-			datestring = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate() + '-' + d.getHours(),
+			datestring =
+				d.getFullYear() +
+				'-' +
+				(d.getMonth() + 1) +
+				'-' +
+				d.getDate() +
+				'-' +
+				d.getHours() +
+				'-' +
+				parseInt(d.getMinutes() / 10),
 			filter = { timeid: datestring },
 			current = await measurement.findOne(filter)
 

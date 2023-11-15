@@ -11,7 +11,7 @@ async function startScheduler() {
 		.run(async () => {
 			await readSaveMeasurement()
 		})
-		.everySeconds(5)
+		.everySeconds(2)
 }
 
 async function readSaveMeasurement() {
