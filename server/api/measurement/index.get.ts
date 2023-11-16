@@ -3,7 +3,7 @@ interface IRequestBody {
 	json: Object
 }
 export default defineEventHandler(async (event) => {
-	console.log('GET /api/measurement')
+	// console.log('GET /api/measurement')
 	try {
 		const newMeasurementData = await measurement.findOne({}, null, { sort: { createdAt: -1} })
 		return {
