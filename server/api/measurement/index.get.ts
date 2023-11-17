@@ -1,7 +1,5 @@
 import { measurement } from '../../dbModels'
-interface IRequestBody {
-	json: Object
-}
+
 export default defineEventHandler(async (event) => {
 	// console.log('GET /api/measurement')
 	try {
