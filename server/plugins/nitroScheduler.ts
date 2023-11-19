@@ -18,7 +18,6 @@ async function readSaveMeasurement() {
 	const response = await $fetch('http://89.190.166.17:8081/v1/current_conditions').catch((error) =>
 		console.log(error.data)
 	)
-
 	const responseData = await $fetch('/api/measurement', {
 		method: 'post',
 		body: {

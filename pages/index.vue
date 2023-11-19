@@ -31,7 +31,7 @@ async function update() {
 	<div v-if="livedata?.measurement?.conditions">
 		<!-- {{ maesurement.data.json }} -->
 		<div class="py-1.5">
-			{{ new Date(livedata?.measurement?.ts * 1000) }}
+			{{ new Date(livedata?.measurement?.ts * 1000).toLocaleString() }}
 		</div>
 		<div class="py-1.5">
 			Aktuelle Wind: <strong>{{ livedata.measurement.conditions[0].wind_speed_last }}</strong> km/h
@@ -201,7 +201,7 @@ async function update() {
 		}
 		&.pointer-scalar {
 			transform: rotate(v-bind(directionScalar));
-			opacity: 0.4;
+			opacity: 0.3;
 		}
 	}
 }
