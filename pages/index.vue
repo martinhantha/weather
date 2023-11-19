@@ -37,7 +37,7 @@ async function update() {
 			Aktuelle Wind: <strong>{{ livedata.measurement.conditions[0].wind_speed_last }}</strong> km/h
 		</div>
 		<div class="py-1.5">
-			Durchschnit Wind 10min:
+			Durchschnitt Wind 10min:
 			<strong>{{ livedata.measurement.conditions[0].wind_speed_avg_last_10_min }} </strong> km/h
 		</div>
 		<div class="py-1.5">
