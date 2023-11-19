@@ -1,6 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-	devtools: { enabled: true },
+	// devtools: { enabled: true },
 	runtimeConfig: {
 		mongoUrl: process.env.MONGODB_URI,
 		apiSecret: process.env.API_SECRET,
@@ -19,12 +19,11 @@ export default defineNuxtConfig({
 	nitro: {
 		plugins: ['~/server/index.ts'],
 	},
-	modules: ['nuxt-scheduler'],
-	css: ['~/assets/css/main.css'],
-	postcss: {
-		plugins: {
-			tailwindcss: {},
-			autoprefixer: {},
-		},
+	modules: ['nuxt-scheduler', '@nuxtjs/tailwindcss'],
+	css: ['~/assets/css/tailwind.css'],
+	tailwindcss: {
+		exposeConfig: true,
+		viewer: true,
+		// and more...
 	},
 })

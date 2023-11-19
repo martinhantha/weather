@@ -6,12 +6,13 @@ export const useMeasurement = (measurementToCalc) => {
 	measurement.conditions = []
 
 	try {
-
 		measurementToCalc.value.data.json.data.conditions.forEach((condition) => {
+			measurement.ts = measurementToCalc.value.data.json.data.ts
 			measurement.conditions[i] = condition
 
 			if (condition.temp) measurement.conditions[i].temp = fahrenheitToCelcius(condition.temp)
 			if (condition.dew_point) measurement.conditions[i].dew_point = fahrenheitToCelcius(condition.dew_point)
+			if (condition.wet_bulb) measurement.conditions[i].wet_bulb = fahrenheitToCelcius(condition.wet_bulb)
 			if (condition.heat_index) measurement.conditions[i].heat_index = fahrenheitToCelcius(condition.heat_index)
 			if (condition.wind_chill) measurement.conditions[i].wind_chill = fahrenheitToCelcius(condition.wind_chill)
 			if (condition.thw_index) measurement.conditions[i].thw_index = fahrenheitToCelcius(condition.thw_index)
