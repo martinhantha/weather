@@ -2,6 +2,7 @@
 import type { useMeasurement } from '~/composables/measurment'
 
 const { pending, data, refresh } = await useFetch('/api/measurement')
+const { data: dataMaxWind, refresh: refreshMaxWind } = await useFetch('/api/measurement?maxWind=60')
 const maesurement = ref({ data })
 const livedata = ref({})
 const summ = 270
@@ -9,6 +10,7 @@ const degrees = ref('-135deg')
 const degreesMax = ref('-135deg')
 const direction = ref('0deg')
 const directionScalar = ref('0deg')
+const counter = ref(30)
 
 onMounted(async () => {
 	await refresh()
@@ -24,7 +26,17 @@ async function update() {
 	degrees.value = (summ / 100) * livedata.value.measurement.conditions[0].wind_speed_last - 135 + 'deg'
 	degreesMax.value = (summ / 100) * livedata.value.measurement.conditions[0].wind_speed_hi_last_10_min - 135 + 'deg'
 	directionScalar.value =
-		(summ / 100) * livedata.value.measurement.conditions[0].wind_dir_scalar_avg_last_10_min - 135 + 'deg'
+   (summ / 100) * livedata.value.measurement.conditions[0].wind_dir_scalar_avg_last_10_min - 135 + 'deg'
+	counter.value++
+   
+   if(counter.value >= 2) {
+      console.log('refreshMaxwind');
+      
+      counter.value = 0
+      refreshMaxWind()
+      console.log(dataMaxWind);
+      
+   }
 }
 </script>
 <template>
