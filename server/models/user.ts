@@ -1,6 +1,7 @@
-import mongoose from 'mongoose'
+import { Schema, model } from 'mongoose'
 import bcrypt from 'mongoose-bcrypt'
-const schema = new mongoose.Schema(
+
+const schema = new Schema(
 	{
 		email: { type: String, unique: true },
 		password: { type: String, bcrypt: true },
@@ -8,5 +9,5 @@ const schema = new mongoose.Schema(
 	},
 	{ timestamps: true, strict: true, strictQuery: true }
 )
-schema.plugin(bcrypt)
-export default mongoose.model('User', schema, 'user')
+// schema.plugin(bcrypt)
+export const User = model('User', schema, 'user')

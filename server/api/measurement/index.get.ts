@@ -1,8 +1,13 @@
-import { measurement } from '../../dbModels'
+import { Measurement } from '../../models'
 
 export default defineEventHandler(async (event) => {
 	// console.log('GET /api/measurement')
-	const queryResult = getQuery(event)
+   
+	// const queryResult = getQuery(event)
+	const result = await Measurement.findOne({createdAt: { $gte: new Date().setMinutes(new Date().getMinutes() - 10)}}, 'json')
+
+	return result
+
 	const sortByTimeStamp = { createdAt: -1 }
 	const sortByTimeMaxWind = { 'json.data.conditions.0.wind_speed_hi_last_10_min': 1 }
 	let query = {}
@@ -11,11 +16,13 @@ export default defineEventHandler(async (event) => {
 		query = { createdAt: { $gte: new Date().setMinutes(new Date().getMinutes() - queryResult.maxWind) } }
 	}
 	try {
-		const newMeasurementData = await measurement.aggregate([
-			{ $match: query },
-			{ $sort: query.maxWind ? sortByTimeMaxWind : sortByTimeStamp },
-			{ $limit: 1 },
-		])
+		const newMeasurementData = <Measurement>(
+			await MeasurementDb.aggregate([
+				{ $match: query },
+				{ $sort: query.maxWind ? sortByTimeMaxWind : sortByTimeStamp },
+				{ $limit: 1 },
+			])
+		)
 
 		console.log(query)
 		console.log(newMeasurementData)

@@ -1,49 +1,50 @@
-export const useMeasurement = (measurementToCalc) => {
-	let error = '',
-		i = 0
+import { WeatherData } from '~/server/models'
+import type { IMeasurement, IWeatherData } from '~/types'
 
-	let measurement = {}
-	measurement.conditions = []
+export const useMeasurement = (measurementToCalc: IMeasurement): IWeatherData => {
+	let i = 0
+
+	let weatherData = new WeatherData()
 
 	try {
-		measurementToCalc.value.data.json.data.conditions.forEach((condition) => {
-			measurement.ts = measurementToCalc.value.data.json.data.ts
-			measurement.conditions[i] = condition
+		measurementToCalc.json.data.conditions.forEach((condition) => {
+			weatherData.ts = measurementToCalc.json.data.ts
+			weatherData.conditions[i] = condition
 
-			if (condition.temp) measurement.conditions[i].temp = fahrenheitToCelcius(condition.temp)
-			if (condition.dew_point) measurement.conditions[i].dew_point = fahrenheitToCelcius(condition.dew_point)
-			if (condition.wet_bulb) measurement.conditions[i].wet_bulb = fahrenheitToCelcius(condition.wet_bulb)
-			if (condition.heat_index) measurement.conditions[i].heat_index = fahrenheitToCelcius(condition.heat_index)
-			if (condition.wind_chill) measurement.conditions[i].wind_chill = fahrenheitToCelcius(condition.wind_chill)
-			if (condition.thw_index) measurement.conditions[i].thw_index = fahrenheitToCelcius(condition.thw_index)
-			if (condition.thsw_index) measurement.conditions[i].thsw_index = fahrenheitToCelcius(condition.thsw_index)
-			if (condition.wind_speed_last) measurement.conditions[i].wind_speed_last = mpHToKmh(condition.wind_speed_last)
+			if (condition.temp) weatherData.conditions[i].temp = fahrenheitToCelcius(condition.temp)
+			if (condition.dew_point) weatherData.conditions[i].dew_point = fahrenheitToCelcius(condition.dew_point)
+			if (condition.wet_bulb) weatherData.conditions[i].wet_bulb = fahrenheitToCelcius(condition.wet_bulb)
+			if (condition.heat_index) weatherData.conditions[i].heat_index = fahrenheitToCelcius(condition.heat_index)
+			if (condition.wind_chill) weatherData.conditions[i].wind_chill = fahrenheitToCelcius(condition.wind_chill)
+			if (condition.thw_index) weatherData.conditions[i].thw_index = fahrenheitToCelcius(condition.thw_index)
+			if (condition.thsw_index) weatherData.conditions[i].thsw_index = fahrenheitToCelcius(condition.thsw_index)
+			if (condition.wind_speed_last) weatherData.conditions[i].wind_speed_last = mpHToKmh(condition.wind_speed_last)
 			if (condition.wind_speed_avg_last_1_min)
-				measurement.conditions[i].wind_speed_avg_last_1_min = mpHToKmh(condition.wind_speed_avg_last_1_min)
+				weatherData.conditions[i].wind_speed_avg_last_1_min = mpHToKmh(condition.wind_speed_avg_last_1_min)
 			if (condition.wind_speed_avg_last_2_min)
-				measurement.conditions[i].wind_speed_avg_last_2_min = mpHToKmh(condition.wind_speed_avg_last_2_min)
+				weatherData.conditions[i].wind_speed_avg_last_2_min = mpHToKmh(condition.wind_speed_avg_last_2_min)
 			if (condition.wind_speed_hi_last_2_min)
-				measurement.conditions[i].wind_speed_hi_last_2_min = mpHToKmh(condition.wind_speed_hi_last_2_min)
+				weatherData.conditions[i].wind_speed_hi_last_2_min = mpHToKmh(condition.wind_speed_hi_last_2_min)
 			if (condition.wind_speed_avg_last_10_min)
-				measurement.conditions[i].wind_speed_avg_last_10_min = mpHToKmh(condition.wind_speed_avg_last_10_min)
+				weatherData.conditions[i].wind_speed_avg_last_10_min = mpHToKmh(condition.wind_speed_avg_last_10_min)
 			if (condition.wind_speed_hi_last_10_min)
-				measurement.conditions[i].wind_speed_hi_last_10_min = mpHToKmh(condition.wind_speed_hi_last_10_min)
+				weatherData.conditions[i].wind_speed_hi_last_10_min = mpHToKmh(condition.wind_speed_hi_last_10_min)
 
 			i++
 		})
 	} catch (e) {
-		error = e
+		console.log(e)
 	}
 
-	return { measurement, error }
+	return weatherData
 }
 
-function fahrenheitToCelcius(num) {
-	return ((5 / 9) * (num - 32)).toFixed(1)
+function fahrenheitToCelcius(num: number): number {
+	return parseFloat(((5 / 9) * (num - 32)).toFixed(1))
 }
-function mpHToKmh(num) {
-	return (num * 1.609344).toFixed(0)
+function mpHToKmh(num: number): number {
+	return parseInt((num * 1.609344).toFixed(0))
 }
-function mpsToKmh(num) {
-	return (num * 3.6).toFixed(0)
+function mpsToKmh(num: number): number {
+	return parseInt((num * 3.6).toFixed(0))
 }

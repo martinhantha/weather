@@ -1,4 +1,4 @@
-import { measurement } from '../../dbModels'
+import { Measurement } from '../../models'
 interface IRequestBody {
 	json: Object
 }
@@ -18,11 +18,11 @@ export default defineEventHandler(async (event) => {
 				'-' +
 				parseInt(d.getMinutes() / 10),
 			filter = { timeid: datestring },
-			current = await measurement.findOne(filter)
+			current = await Measurement.findOne(filter)
 
 		if (current) {
 			try {
-				const newMeasurementData = await measurement.updateOne(filter, {
+				const newMeasurementData = await Measurement.updateOne(filter, {
 					json: body.json,
 				})
 				return {
@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
 			}
 		} else {
 			try {
-				const newMeasurementData = await measurement.create({
+				const newMeasurementData = await Measurement.create({
 					timeid: datestring,
 					json: body.json,
 				})
