@@ -66,3 +66,29 @@ export interface IMeasurement {
    createdAt?: Date
    updatedAt?: Date
 }
+
+/** South Tyrol Buergernetz API: one row per sensor type. */
+export interface ISouthTyrolSensorRow {
+	TYPE: string
+	VALUE: number
+	DATE: string
+}
+
+/** Normalized South Tyrol station (same field names as ICondition for display/gauges). */
+export interface INormalizedSouthTyrolStation {
+	ts: number
+	temp?: number
+	wind_speed_last?: number
+	wind_speed_hi_last_10_min?: number
+	wind_speed_avg_last_10_min?: number
+	wind_dir_last?: number
+}
+
+/** Station config for wind list: WeatherLink, South Tyrol, or PWS (weather.com). */
+export interface IStationConfig {
+	id: string
+	name: string
+	source: 'weatherlink' | 'southtyrol' | 'pws'
+	station_id?: string
+	station_code?: string
+}
