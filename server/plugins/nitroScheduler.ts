@@ -5,14 +5,14 @@ export default defineNitroPlugin(async (nitroApp) => {
 })
 
 async function startScheduler() {
-	const scheduler = useScheduler()
+	// const scheduler = useScheduler()
 
-	if (process.env.NODE_ENV !== 'development')
-		scheduler
-			.run(async () => {
-				await readSaveMeasurement()
-			})
-			.everySeconds(2)
+	// if (process.env.NODE_ENV !== 'development' )
+	// 	scheduler
+	// 		.run(async () => {
+	// 			await readSaveMeasurement()
+	// 		})
+	// 		.everySeconds(2)
 }
 
 async function readSaveMeasurement() {

@@ -51,23 +51,7 @@ function getStationData(station: IStationConfig): { ts: number; condition: Parti
 	}
 	if (station.source === 'weatherlink' && station.station_id === '92575') {
 		// #region agent log
-		fetch('http://127.0.0.1:7491/ingest/a813ce03-1238-4f95-a88e-c1ed56fff790', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6ef162' },
-			body: JSON.stringify({
-				sessionId: '6ef162',
-				location: 'index.vue:getStationData(Sattele)',
-				message: 'Sattele data check',
-				data: {
-					hasValue: !!weatherlinkSatteleData.value,
-					keys: weatherlinkSatteleData.value ? Object.keys(weatherlinkSatteleData.value) : [],
-					hasTs: !!(weatherlinkSatteleData.value && 'ts' in weatherlinkSatteleData.value),
-					hasCondition: !!(weatherlinkSatteleData.value && 'condition' in weatherlinkSatteleData.value),
-				},
-				hypothesisId: 'H3',
-				timestamp: Date.now(),
-			}),
-		}).catch(() => {})
+		
 		// #endregion
 		if (weatherlinkSatteleData.value && 'ts' in weatherlinkSatteleData.value && 'condition' in weatherlinkSatteleData.value) {
 			return { ts: weatherlinkSatteleData.value.ts, condition: weatherlinkSatteleData.value.condition }

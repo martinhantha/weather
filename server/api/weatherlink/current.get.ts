@@ -78,11 +78,6 @@ function pickFirstCondition(sensors: WlSensor[]): { ts: number; condition: Parti
 
 function dbg(payload: Record<string, unknown>) {
 	// #region agent log
-	fetch('http://127.0.0.1:7491/ingest/a813ce03-1238-4f95-a88e-c1ed56fff790', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6ef162' },
-		body: JSON.stringify({ sessionId: '6ef162', ...payload, timestamp: Date.now() }),
-	}).catch(() => {})
 	// #endregion
 }
 
