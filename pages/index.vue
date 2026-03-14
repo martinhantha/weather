@@ -10,6 +10,7 @@ const STATIONS: IStationConfig[] = [
 	{ id: '92575', name: 'Sattele', source: 'weatherlink', station_id: '92575' },
 	{ id: 'ISARNT29', name: 'Reinswald', source: 'pws', station_id: 'ISARNT29' },
     { id: '82200MS', name: 'Sarnthein', source: 'southtyrol', station_code: '82200MS' },
+    { id: '82910MS', name: 'Jenesien', source: 'southtyrol', station_code: '82910MS' },
     { id: '80100SF', name: 'Pens Tramintal', source: 'southtyrol', station_code: '80100SF' },
     { id: '35100WS', name: 'Jaufen', source: 'southtyrol', station_code: '35100WS' },
     { id: '82500WS', name: 'Rittnerhorn', source: 'southtyrol', station_code: '82500WS' },
@@ -42,6 +43,14 @@ function degToDir(deg: number): string {
     const number = Math.round(deg / 22.5 + 0.5)
     const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
     return directions[number % 16]
+}
+
+/** Tailwind text color class for wind speed: blue < 25, orange 25–35, red > 35 km/h. */
+function windSpeedColor(speed: number | null | undefined): string {
+    if (speed == null) return 'text-gray-500'
+    if (speed < 25) return 'text-blue-600'
+    if (speed <= 35) return 'text-orange-600'
+    return 'text-red-600'
 }
 
 function getStationData(station: IStationConfig): { ts: number; condition: Partial<ICondition> } | null {
@@ -99,6 +108,10 @@ const selectedTs = computed(() => {
     return data?.ts ?? 0
 })
 
+const selectedStationName = computed(() =>
+    STATIONS.find((s) => s.id === selectedStationId.value)?.name ?? '–'
+)
+
 function update() {
 	weatherData.value = useMeasurement(<IMeasurement>data.value)
 	const cond = selectedCondition.value
@@ -136,32 +149,116 @@ onMounted(() => {
 
 </script>
 <template>
-    <section class="windinfo-section">
-        <h3 class="text-lg font-semibold mb-2">Windwerte</h3>
-        <div class="windinfo">
-            <div v-for="station in STATIONS" :key="station.id" class="wind-item" :class="{ 'wind-item--selected': selectedStationId === station.id }" @click="selectedStationId = station.id">
-                <div class="label">
-                    <span class="label__name">{{ station.name }}</span>
-                    <span v-if="getStationData(station)?.ts" class="label__time">{{ new Date(getStationData(station)!.ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) }}</span>
-                    <span v-if="LIVE_STATION_IDS.has(station.id)" class="live-badge" title="Live"><span class="live-badge__dot"></span> LIVE</span>
+    <section class="space-y-6">
+        <!-- Section header with prominent current station name -->
+        <header class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div class="space-y-1">
+                    <h2 class="text-lg font-semibold tracking-tight text-gray-900">
+                        Windübersicht
+                    </h2>
+                    <p class="text-sm text-gray-500">
+                        Live&nbsp;Messwerte aus Berg- und Talstationen rund um das Sarntal.
+                    </p>
                 </div>
-                <div class="wind" v-if="getStationData(station)">
-                    <span class="v-item"><b>{{ getStationData(station)!.condition.wind_speed_last ?? '—' }}</b> km/h</span>
-                    <span class="pipe">|</span>
-                    <span class="v-item">{{ getStationData(station)!.condition.wind_speed_hi_last_10_min ?? '—' }} km/h 10' max</span>
-                    <span class="pipe">|</span>
-                    <span class="v-item">{{ getStationData(station)!.condition.wind_speed_avg_last_10_min ?? '—' }} km/h 10' Ø</span>
-                    <span class="v-item"><b>{{ getStationData(station)!.condition.wind_dir_last != null ? degToDir(windDirDeg(getStationData(station)!.condition, station.id)) : '—' }}</b></span>
-                </div>
-                <div class="temp" v-if="getStationData(station)"><b>{{ getStationData(station)!.condition.temp ?? '—' }} °C</b></div>
             </div>
+        </header>
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <article
+                v-for="station in STATIONS"
+                :key="station.id"
+                class="cursor-pointer rounded-xl border-2 bg-white p-5 shadow-sm transition hover:border-sky-300 hover:shadow"
+                :class="selectedStationId === station.id ? 'border-sky-500 ring-2 ring-sky-200' : 'border-gray-200'"
+                @click="selectedStationId = station.id"
+            >
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-base font-medium text-gray-900">
+                            {{ station.name }}
+                        </p>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2">
+                        <span
+                            v-if="getStationData(station)?.ts"
+                            class="text-xs tabular-nums text-gray-500"
+                        >
+                            {{ new Date(getStationData(station)!.ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) }}
+                        </span>
+                        <span
+                            v-if="LIVE_STATION_IDS.has(station.id)"
+                            class="inline-flex items-center gap-1 rounded-full border border-emerald-400 bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800"
+                        >
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                            LIVE
+                        </span>
+                    </div>
+                </div>
+
+                <div v-if="getStationData(station)" class="mt-4 space-y-3 border-t border-gray-100 pt-4">
+                    <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-base text-gray-600">
+                        <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_last)">
+                            <span class="font-semibold">{{ getStationData(station)!.condition.wind_speed_last ?? '—' }}</span> km/h
+                        </span>
+                        <span class="text-gray-400">aktuell</span>
+                        <span class="hidden text-gray-300 sm:inline">·</span>
+                        <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_hi_last_10_min)">
+                            <span class="font-semibold">{{ getStationData(station)!.condition.wind_speed_hi_last_10_min ?? '—' }}</span> km/h 10′ max
+                        </span>
+                        <span class="hidden text-gray-300 sm:inline">·</span>
+                        <span class="text-gray-600">
+                            <span class="font-semibold">{{ getStationData(station)!.condition.wind_speed_avg_last_10_min ?? '—' }}</span> km/h 10′ Ø
+                        </span>
+                    </div>
+
+                    <div class="flex items-center justify-between text-base text-gray-600">
+                        <div class="flex items-baseline gap-1.5">
+                            <span class="text-xs uppercase tracking-wider text-gray-500">
+                                Richtung
+                            </span>
+                            <span class="font-semibold text-gray-900">
+                                {{
+                                    getStationData(station)!.condition.wind_dir_last != null
+                                        ? degToDir(windDirDeg(getStationData(station)!.condition, station.id))
+                                        : '—'
+                                }}
+                            </span>
+                        </div>
+                        <div v-if="getStationData(station)!.condition.temp != null" class="flex items-baseline gap-1.5">
+                            <span class="text-xs uppercase tracking-wider text-gray-500">
+                                Temp
+                            </span>
+                            <span class="font-semibold text-gray-900">
+                                {{ getStationData(station)!.condition.temp }} °C
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <p v-else class="mt-4 border-t border-gray-100 pt-4 text-sm text-gray-500">
+                    Keine aktuellen Daten verfügbar.
+                </p>
+            </article>
         </div>
     </section>
 
-    <section v-if="foehnData?.contents?.[0]?.imageUrl" class="foehn-section mt-4">
-        <h3 class="text-lg font-semibold mb-2">Föhndiagramm</h3>
-        <div class="foehn-value">
-            <img :src="foehnData.contents[0].imageUrl" alt="Föhndiagramm" class="max-w-full h-auto" />
+    <section v-if="foehnData?.contents?.[0]?.imageUrl" class="mt-8">
+        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <header class="mb-4">
+                <h3 class="text-base font-semibold text-gray-900">
+                    Föhndiagramm
+                </h3>
+                <p class="mt-0.5 text-sm text-gray-500">
+                    Darstellung der aktuellen Föhnsituation (Landeswetterdienst Südtirol).
+                </p>
+            </header>
+            <div class="flex justify-center rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <img
+                    :src="foehnData.contents[0].imageUrl"
+                    alt="Föhndiagramm"
+                    class="max-h-[420px] w-full max-w-3xl object-contain"
+                />
+            </div>
         </div>
     </section>
 
@@ -188,10 +285,32 @@ onMounted(() => {
             Feuchtkugel: <strong>{{ selectedCondition.wet_bulb }}</strong> °C
         </div>
     </div> -->
-    <div class="outer flex py-6" v-if="selectedCondition">
-        <div class="gauge-cell gauge-cell--now">
-            <div class="direction">
-                <div class="direction__wheel">
+    <section v-if="selectedCondition" class="mt-8">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] items-start">
+            <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <header class="mb-5 flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <p class="text-xs uppercase tracking-wider text-gray-500">
+                            Aktuelle Station
+                        </p>
+                        <h3 class="text-lg font-semibold text-gray-900">
+                            {{ selectedStationName }}
+                        </h3>
+                        <p class="mt-0.5 text-xs uppercase tracking-wider text-gray-500">
+                            Windrichtung &amp; Skalar (10′)
+                        </p>
+                    </div>
+                    <span
+                        v-if="selectedTs"
+                        class="text-sm tabular-nums text-gray-500"
+                    >
+                        {{ new Date(selectedTs * 1000).toLocaleString('de-DE', { hour: '2-digit', minute: '2-digit' }) }}
+                    </span>
+                </header>
+
+                <div class="flex justify-center">
+                    <div class="direction">
+                        <div class="direction__wheel">
                     <svg viewBox="0 0 800 800" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
                         <clipPath id="m">
                             <path id="msk" d="m0-380 45,270 255,-190z m0,0 -45,270 -255,-190z m0,760 -45,-270 -255,190z m0,0 45,-270 255,190z" />
@@ -260,339 +379,112 @@ onMounted(() => {
                 </div>
                 <div class="wind-arrow wind-arrow--current" :style="{ transform: `translate(-50%, -50%) rotate(${direction})` }">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="wind-arrow__svg">
-                        <!-- Wind arrow: tip up, base at center so it pivots correctly -->
-                        <path d="M12 0 L9 12 L12 11 L15 12 Z" fill="#dc2626" stroke="#b91c1c" stroke-width="0.5" stroke-linejoin="round" />
+                        <path d="M12 0 L9 12 L12 11 L15 12 Z" fill="#e11d48" stroke="#be123c" stroke-width="0.5" stroke-linejoin="round" />
                     </svg>
                 </div>
                 <div class="wind-arrow wind-arrow--scalar" :style="{ transform: `translate(-50%, -50%) rotate(${directionScalar})` }">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="wind-arrow__svg">
-                        <path d="M12 0 L9 12 L12 11 L15 12 Z" fill="#dc2626" stroke="#b91c1c" stroke-width="0.5" stroke-linejoin="round" opacity="0.4" />
+                        <path d="M12 0 L9 12 L12 11 L15 12 Z" fill="#e11d48" stroke="#be123c" stroke-width="0.5" stroke-linejoin="round" opacity="0.4" />
                     </svg>
                 </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <header class="mb-4">
+                    <h3 class="text-base font-semibold text-gray-900">
+                        Detailwerte
+                    </h3>
+                    <p class="mt-0.5 text-sm text-gray-500">
+                        {{ selectedStationName }}
+                    </p>
+                </header>
+
+                <dl class="grid grid-cols-2 gap-4 text-sm">
+                    <div class="space-y-0.5 rounded-lg bg-gray-50 p-3">
+                        <dt class="text-xs uppercase tracking-wider text-gray-500">
+                            Aktuell
+                        </dt>
+                        <dd :class="['font-semibold', windSpeedColor(selectedCondition.wind_speed_last)]">
+                            {{ selectedCondition.wind_speed_last ?? '—' }} km/h
+                        </dd>
+                    </div>
+                    <div class="space-y-0.5 rounded-lg bg-gray-50 p-3">
+                        <dt class="text-xs uppercase tracking-wider text-gray-500">
+                            10′ Ø
+                        </dt>
+                        <dd class="font-semibold text-gray-900">
+                            {{ selectedCondition.wind_speed_avg_last_10_min ?? '—' }} km/h
+                        </dd>
+                    </div>
+                    <div class="space-y-0.5 rounded-lg bg-gray-50 p-3">
+                        <dt class="text-xs uppercase tracking-wider text-gray-500">
+                            10′ max
+                        </dt>
+                        <dd :class="['font-semibold', windSpeedColor(selectedCondition.wind_speed_hi_last_10_min)]">
+                            {{ selectedCondition.wind_speed_hi_last_10_min ?? '—' }} km/h
+                        </dd>
+                    </div>
+                    <div class="space-y-0.5 rounded-lg bg-gray-50 p-3">
+                        <dt class="text-xs uppercase tracking-wider text-gray-500">
+                            Temperatur
+                        </dt>
+                        <dd class="font-semibold text-gray-900">
+                            {{ selectedCondition.temp ?? '—' }} °C
+                        </dd>
+                    </div>
+                    <div v-if="selectedCondition.hum != null" class="space-y-0.5 rounded-lg bg-gray-50 p-3">
+                        <dt class="text-xs uppercase tracking-wider text-gray-500">
+                            Feuchte
+                        </dt>
+                        <dd class="font-semibold text-gray-900">
+                            {{ selectedCondition.hum }} %
+                        </dd>
+                    </div>
+                    <div v-if="selectedCondition.wet_bulb != null" class="space-y-0.5 rounded-lg bg-gray-50 p-3">
+                        <dt class="text-xs uppercase tracking-wider text-gray-500">
+                            Feuchtkugel
+                        </dt>
+                        <dd class="font-semibold text-gray-900">
+                            {{ selectedCondition.wet_bulb }} °C
+                        </dd>
+                    </div>
+                </dl>
             </div>
         </div>
-        <!-- <div class="gauge-cell gauge-cell--old">
-            <div class="gauge-label">
-                <span class="gauge-label__arrow" aria-hidden="true">→</span>
-                <span>Alt</span>
-            </div>
-            <div class="speed">
-            <div class="speed__wheel">
-                <div class="speed__tick">
-                    <div class="tick" value="0"></div>
-                    <div class="tick" value="5"></div>
-                    <div class="tick" value="10"></div>
-                    <div class="tick" value="15"></div>
-                    <div class="tick" value="20"></div>
-                    <div class="tick" value="25"></div>
-                    <div class="tick" value="30"></div>
-                    <div class="tick" value="35"></div>
-                    <div class="tick" value="40"></div>
-                    <div class="tick" value="45"></div>
-                    <div class="tick" value="50"></div>
-                    <div class="tick" value="55"></div>
-                    <div class="tick" value="60"></div>
-                    <div class="tick" value="65"></div>
-                    <div class="tick" value="70"></div>
-                    <div class="tick" value="75"></div>
-                    <div class="tick" value="80"></div>
-                    <div class="tick" value="85"></div>
-                    <div class="tick" value="90"></div>
-                    <div class="tick" value="95"></div>
-                    <div class="tick" value="100"></div>
-                </div>
-                <div class="pointer pointer-current"></div>
-                <div class="pointer pointer-max"></div>
-                <div class="endpoint"></div>
-            </div>
-        </div> -->
-    </div>
+    </section>
 </template>
-<style lang="less">
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-.outer {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 1rem;
-    width: 100%;
-}
-
-.gauge-cell {
-    min-width: 0;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    border-radius: 0.5rem;
-    padding: 1rem;
-}
-
-.gauge-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: #374151;
-}
-
-.gauge-label__arrow {
-    font-size: 1rem;
-    color: #6b7280;
-}
-
-.outer .gauge-cell .direction,
-.outer .gauge-cell .speed {
-    max-width: 300px;
-    width: 100%;
-
-    svg {
-        width: 100%;
-        height: auto;
-        max-height: 300px;
-    }
-}
-
-.speed {
-    position: relative;
-    display: flex;
-}
-
+<style scoped>
 .direction {
-    width: 300px;
-    position: relative;
-
-    .direction__wheel {
-        z-index: 3;
-        width: 100%;
-    }
-
-    .wind-arrow {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        width: 56%;
-        height: 56%;
-        pointer-events: none;
-        z-index: 5;
-        transition: transform 1.5s ease-out;
-    }
-
-    .wind-arrow--scalar {
-        z-index: 4;
-    }
-
-    .wind-arrow__svg {
-        width: 100%;
-        height: 100%;
-        display: block;
-    }
+  width: min(320px, 100%);
+  position: relative;
 }
 
-.windinfo-section {
-    margin-bottom: 1.5rem;
+.direction__wheel svg {
+  width: 100%;
+  height: auto;
+  max-height: 320px;
 }
 
-.windinfo {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+.wind-arrow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56%;
+  height: 56%;
+  pointer-events: none;
+  z-index: 5;
+  transition: transform 1.4s cubic-bezier(0.19, 1, 0.22, 1);
 }
 
-.wind-item {
-    padding: 0.5rem 0.75rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.375rem;
-    width: 100%;
-    cursor: pointer;
+.wind-arrow--scalar {
+  z-index: 4;
 }
 
-.wind-item:hover {
-    background: #f3f4f6;
-}
-
-.wind-item--selected {
-    border-color: #3b82f6;
-    background: #eff6ff;
-}
-
-.wind-item .label {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-    justify-content: flex-end;
-}
-
-.wind-item .label__name {
-    margin-right: auto;
-}
-
-.wind-item .label__time {
-    color: #6b7280;
-    font-size: 0.875rem;
-}
-
-.wind-item .label .live-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    color: #16a34a;
-    font-size: 0.75rem;
-    font-weight: 600;
-    animation: live-badge-blink 2s ease-in-out infinite;
-}
-
-.wind-item .label .live-badge__dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #16a34a;
-    flex-shrink: 0;
-}
-
-@keyframes live-badge-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
-}
-
-.wind-item .wind,
-.wind-item .temp {
-    font-size: 0.875rem;
-    margin-top: 0.25rem;
-}
-
-.wind-item .wind {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0 0.25rem;
-}
-
-.wind-item .pipe {
-    margin: 0 0.25rem;
-    color: #9ca3af;
-}
-.windinfo {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.wind-item {
-    width: calc(50% - 0.25rem);
-    min-width: 0;
-}
-@media (max-width: 1023px) {
-
-
-    .wind-item .wind .v-item {
-        display: block;
-        width: 100%;
-    }
-
-    .wind-item .wind .pipe {
-        display: none;
-    }
-}
-
-
-.speed__tick {
-    display: flex;
-    gap: 1px;
-}
-
-.tick {
-    transform-origin: bottom;
-    position: absolute;
-    background: linear-gradient(to top, transparent 90%, white 90%);
-    height: 140px;
-    width: 2px;
-    top: 10px;
-    left: 50%;
-    transform: rotate(var(--angle)) rotateZ(-145.5deg);
-}
-
-.tick:nth-child(odd)::before {
-    position: absolute;
-    content: attr(value) '';
-    color: #fff;
-    left: -8px;
-    top: 20px;
-    z-index: 11;
-    transform: rotate(var(--position-number));
-}
-
-each(range(22), {
-    .tick:nth-child(@{value}) {
-        --angle: calc(270deg / 20.5 * @value);
-        --position-number: calc(145deg + (-13.2deg * @value));
-    }
-
-}) .speed .pointer {
-    transition: transform 2s ease-out;
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    margin-left: -10px;
-    margin-top: -170px;
-    width: 20px;
-    height: 170px;
-    background: #e66958;
-    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
-    transform-origin: 10px 170px;
-
-    &.pointer-current {
-        transform: rotate(v-bind(degrees));
-    }
-
-    &.pointer-max {
-        opacity: 0.4;
-        transform: rotate(v-bind(degreesMax));
-    }
-}
-
-.speed .pointer::before {
-    content: '';
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    background: #f2f3f3;
-    border-radius: 50%;
-    bottom: -6px;
-    left: 50%;
-    margin-left: -6px;
-}
-
-.endpoint {
-    position: absolute;
-    width: 7px;
-    height: 7px;
-    background: #f2f3f3;
-    top: 225px;
-    left: 235px;
-    border-radius: 50%;
-}
-
-// LAYOUT mobile
-@media (max-width: 1023px) {
-    .outer {
-        flex-direction: row;
-        align-items: center;
-
-        .direction {
-            margin: 3rem 0;
-        }
-    }
-
-    .temperatures {
-        flex-direction: column;
-    }
+.wind-arrow__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 </style>
