@@ -45,12 +45,24 @@ function degToDir(deg: number): string {
     return directions[number % 16]
 }
 
-/** Tailwind text color class for wind speed: blue < 25, orange 25–35, red > 35 km/h. */
+/** Tailwind text color class for wind speed: green <= 14, yellow 15–25, orange 26–30, red 31–38, black > 38 km/h. */
 function windSpeedColor(speed: number | null | undefined): string {
     if (speed == null) return 'text-gray-500'
-    if (speed < 25) return 'text-blue-600'
-    if (speed <= 35) return 'text-orange-600'
-    return 'text-red-600'
+    if (speed <= 14) return 'text-green-600'
+    if (speed <= 25) return 'text-yellow-500'
+    if (speed <= 30) return 'text-orange-600'
+    if (speed <= 38) return 'text-red-600'
+    return 'text-black'
+}
+
+/** Hex color for wind speed arrows, same bands as windSpeedColor. */
+function windSpeedColorHex(speed: number | null | undefined): string {
+    if (speed == null) return '#6b7280' // gray-500
+    if (speed <= 14) return '#16a34a' // green-600
+    if (speed <= 25) return '#eab308' // yellow-500
+    if (speed <= 30) return '#ea580c' // orange-600
+    if (speed <= 38) return '#dc2626' // red-600
+    return '#000000'
 }
 
 function getStationData(station: IStationConfig): { ts: number; condition: Partial<ICondition> } | null {
@@ -212,17 +224,34 @@ onMounted(() => {
                     </div>
 
                     <div class="flex items-center justify-between text-base text-gray-600">
-                        <div class="flex items-baseline gap-1.5">
-                            <span class="text-xs uppercase tracking-wider text-gray-500">
-                                Richtung
-                            </span>
-                            <span class="font-semibold text-gray-900">
-                                {{
-                                    getStationData(station)!.condition.wind_dir_last != null
-                                        ? degToDir(windDirDeg(getStationData(station)!.condition, station.id))
-                                        : '—'
-                                }}
-                            </span>
+                        <div class="flex items-center gap-2">
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="text-xs uppercase tracking-wider text-gray-500">
+                                    Richtung
+                                </span>
+                                <span class="font-semibold text-gray-900">
+                                    {{
+                                        getStationData(station)!.condition.wind_dir_last != null
+                                            ? degToDir(windDirDeg(getStationData(station)!.condition, station.id))
+                                            : '—'
+                                    }}
+                                </span>
+                            </div>
+                            <svg
+                                v-if="getStationData(station) && getStationData(station)!.condition.wind_dir_last != null"
+                                viewBox="0 0 24 12"
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-9 w-9"
+                                :style="{ transform: `rotate(${(windDirDeg(getStationData(station)!.condition, station.id) + 180) % 360}deg)` }"
+                            >
+                                <path
+                                    d="M12 0 L9 12 L12 11 L15 12 Z"
+                                    :fill="windSpeedColorHex(getStationData(station)!.condition.wind_speed_last ?? null)"
+                                    :stroke="windSpeedColorHex(getStationData(station)!.condition.wind_speed_hi_last_10_min ?? null)"
+                                    stroke-width="0.8"
+                                    stroke-linejoin="round"
+                                />
+                            </svg>
                         </div>
                         <div v-if="getStationData(station)!.condition.temp != null" class="flex items-baseline gap-1.5">
                             <span class="text-xs uppercase tracking-wider text-gray-500">
@@ -379,12 +408,25 @@ onMounted(() => {
                 </div>
                 <div class="wind-arrow wind-arrow--current" :style="{ transform: `translate(-50%, -50%) rotate(${direction})` }">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="wind-arrow__svg">
-                        <path d="M12 0 L9 12 L12 11 L15 12 Z" fill="#e11d48" stroke="#be123c" stroke-width="0.5" stroke-linejoin="round" />
+                        <path
+                            d="M12 0 L9 12 L12 11 L15 12 Z"
+                            :fill="windSpeedColorHex(selectedCondition?.wind_speed_last ?? null)"
+                            :stroke="windSpeedColorHex(selectedCondition?.wind_speed_hi_last_10_min ?? null)"
+                            stroke-width="0.5"
+                            stroke-linejoin="round"
+                        />
                     </svg>
                 </div>
                 <div class="wind-arrow wind-arrow--scalar" :style="{ transform: `translate(-50%, -50%) rotate(${directionScalar})` }">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="wind-arrow__svg">
-                        <path d="M12 0 L9 12 L12 11 L15 12 Z" fill="#e11d48" stroke="#be123c" stroke-width="0.5" stroke-linejoin="round" opacity="0.4" />
+                        <path
+                            d="M12 0 L9 12 L12 11 L15 12 Z"
+                            :fill="windSpeedColorHex(selectedCondition?.wind_speed_avg_last_10_min ?? null)"
+                            :stroke="windSpeedColorHex(selectedCondition?.wind_speed_hi_last_10_min ?? null)"
+                            stroke-width="0.5"
+                            stroke-linejoin="round"
+                            opacity="0.4"
+                        />
                     </svg>
                 </div>
                     </div>
