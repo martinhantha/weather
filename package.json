@@ -12,7 +12,8 @@
     "start": "nuxt start",
     "deploy:cloudflare": "yarn build && npx wrangler --cwd dist pages deploy . --branch master --project-name=weather",
     "preview:cloudflare": "yarn build && npx wrangler --cwd dist pages dev",
-    "test:mongo": "node --env-file=.env scripts/test-mongo.js"
+    "test:mongo": "node --env-file=.env scripts/test-mongo.js",
+    "poll:measurement": "node --env-file=.env scripts/poll-measurement.mjs"
   },
   "devDependencies": {
     "@nuxt/devtools": "latest",

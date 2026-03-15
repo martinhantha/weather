@@ -3,7 +3,7 @@ import * as db from '../../utils/db'
 export default defineEventHandler(async (event) => {
 	const body = await readBody(event)
 
-	if (!body?.json || !db.isConfigured()) return
+	if (!body?.json || !db.isConfigured(event)) return
 
 	const d = new Date()
 	const datestring =
@@ -17,14 +17,16 @@ export default defineEventHandler(async (event) => {
 		'-' +
 		String(Math.floor(d.getMinutes() / 10))
 	const filter = { timeid: datestring }
+    console.log(filter)
+    
 
 	try {
-		const existing = await db.findOne(filter)
+		const existing = await db.findOne(event, filter)
 		if (existing) {
-			await db.updateOne(filter, { $set: { json: body.json } })
+			await db.updateOne(event, filter, { $set: { json: body.json } })
 			return { id: existing._id, json: body.json }
 		}
-		const { insertedId } = await db.insertOne({ timeid: datestring, json: body.json })
+		const { insertedId } = await db.insertOne(event, { timeid: datestring, json: body.json })
 		return { id: insertedId, json: body.json }
 	} catch (err) {
 		console.error(err)

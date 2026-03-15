@@ -10,14 +10,13 @@ export default defineTask({
 		name: 'pichlberg:measurement',
 		description: 'Fetch Pichlberg current_conditions and save to /api/measurement',
 	},
-	async run({ context }) {
-		// const config = useRuntimeConfig()
-		// const baseUrl = (config.public?.apiUrl as string)?.trim() || ''
-		// const result = await readSaveMeasurement(baseUrl || undefined)
-		// if (!result.ok) {
-		// 	throw new Error(result.error ?? 'readSaveMeasurement failed')
-		// }
-        console.log('measurement task');
+	async run() {
+		const config = useRuntimeConfig()
+		const baseUrl = (config.public?.apiUrl as string)?.trim() || ''
+		const result = await readSaveMeasurement(baseUrl || undefined)
+		if (!result.ok) {
+			throw new Error(result.error ?? 'readSaveMeasurement failed')
+		}
 		return { result: 'ok' }
 	},
 })

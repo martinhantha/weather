@@ -18,9 +18,9 @@ type WindStationsOut = Record<string, { station_id: string; ts: number; conditio
 export default defineEventHandler(async (event): Promise<WindStationsOut> => {
 	const out: WindStationsOut = {}
 
-	if (db.isConfigured()) {
+	if (db.isConfigured(event)) {
 		try {
-			const doc = await db.findOne({}, { _id: -1 as const })
+			const doc = await db.findOne(event, {}, { _id: -1 as const })
 			if (doc?.json && typeof doc.json === 'object') {
 				const data = (doc.json as { data?: { conditions?: Array<Record<string, unknown>>; ts?: number } }).data
 				const c = data?.conditions?.[0]

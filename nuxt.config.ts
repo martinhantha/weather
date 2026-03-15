@@ -46,21 +46,16 @@ export default defineNuxtConfig({
 			deployConfig: true,
 			wrangler: {
 				triggers: { crons: ['* * * * *'] },
+				d1_databases: [
+					{
+						binding: 'DB',
+						database_name: 'weatherpichlberg',
+						database_id: process.env.CLOUDFLARE_D1_DATABASE_ID || '',
+					},
+				],
 			},
 		},
-		// Stub mongoose/mongodb for Cloudflare build (no TCP on Workers); Node uses real mongoose with MONGODB_URI
-		alias: {
-			'mongoose': './server/utils/mongoose-cloudflare-stub.ts',
-			'mongodb': './server/utils/mongodb-cloudflare-stub.ts',
-			'@mongodb-js/zstd': './server/utils/zstd-stub.ts',
-			'gcp-metadata': './server/utils/zstd-stub.ts',
-			'snappy': './server/utils/zstd-stub.ts',
-			'socks': './server/utils/zstd-stub.ts',
-			'@aws-sdk/credential-providers': './server/utils/zstd-stub.ts',
-			'aws4': './server/utils/zstd-stub.ts',
-			'kerberos': './server/utils/zstd-stub.ts',
-			'mongodb-client-encryption': './server/utils/zstd-stub.ts',
-		},
+		// Stub mongoose/mongodb so Cloudflare build succeeds (D1 is used at runtime; db-node still bundled)
 	},
 	modules: ['nuxt-scheduler', '@nuxtjs/tailwindcss'],
 	css: ['~/assets/css/tailwind.css'],

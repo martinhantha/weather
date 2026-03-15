@@ -16,10 +16,9 @@ export async function readSaveMeasurement(baseUrl?: string): Promise<{ ok: boole
 	}
 
 	const measurementUrl = baseUrl ? `${baseUrl.replace(/\/$/, '')}/api/measurement` : '/api/measurement'
-	await $fetch(measurementUrl, {
+	const result = await $fetch(measurementUrl, {
 		method: 'post',
 		body: { json: response },
 	}).catch((e) => console.error('[readSaveMeasurement] POST failed:', e))
-
 	return { ok: true }
 }

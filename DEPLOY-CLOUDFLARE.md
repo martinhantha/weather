@@ -15,15 +15,41 @@ npx wrangler --cwd dist pages deploy . --branch master --project-name=weather
 
 Preview locally: `yarn preview:cloudflare`.
 
+## D1 database (Cloudflare)
+
+The app uses **Cloudflare D1** for the measurement store on Cloudflare Pages. Set up once:
+
+1. **Create the D1 database**
+   ```bash
+   npx wrangler d1 create weatherpichlberg
+   ```
+   Copy the printed `database_id` and set it as an environment variable (see below).
+
+2. **Apply the schema**
+   ```bash
+   npx wrangler d1 execute weatherpichlberg --remote --file=./scripts/d1-schema.sql
+   ```
+
+3. **Set `CLOUDFLARE_D1_DATABASE_ID`** in the Cloudflare Pages project (Settings → Environment variables), or add the D1 binding in the dashboard: binding name `DB`, database name `weatherpichlberg`, and the same `database_id`.
+
+4. **Import existing MongoDB data (optional)**  
+   From a machine that can reach MongoDB and has `MONGODB_URI` in `.env`:
+   ```bash
+   node --env-file=.env scripts/import-mongo-to-d1.mjs
+   npx wrangler d1 execute weatherpichlberg --remote --file=./scripts/import-output.sql
+   ```
+   The script reads the full `measurement` collection and writes `scripts/import-output.sql`; then apply it with wrangler.
+
 ## Environment variables (Cloudflare dashboard)
 
 In **Pages → Your project → Settings → Environment variables**, set:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `MONGODB_URI` | Yes (Node) | Connection string (mongoose). Use this when running on Node (nuxt dev, VPS). |
-| `MONGODB_APP_ID` | Yes (CF) | Data API app ID (for Cloudflare Workers when not using URI). |
-| `MONGODB_API_KEY` | Yes (CF) | Data API key (for Cloudflare). |
+| `CLOUDFLARE_D1_DATABASE_ID` | Yes (CF) | D1 database ID from `wrangler d1 create weatherpichlberg`. Used for the `DB` binding. |
+| `MONGODB_URI` | Yes (Node) | Connection string (mongoose). Use when running on Node (nuxt dev, VPS). |
+| `MONGODB_APP_ID` | No (CF fallback) | Data API app ID if not using D1. |
+| `MONGODB_API_KEY` | No (CF fallback) | Data API key if not using D1. |
 | `MONGODB_DATA_SOURCE` | No | Cluster name, default `Cluster0`. |
 | `MONGODB_DATABASE` | No | Database name, default `mydb`. |
 | `API_URL` | Yes | Your app URL, e.g. `https://weather.hantha.digital`. Used for wind-stations fallback and scheduled task self-POST. |
@@ -48,11 +74,13 @@ In **Pages → Your project → Settings → Environment variables**, set:
 ## Data
 
 - **Node (nuxt dev, VPS):** Set **MONGODB_URI** in `.env` – the app uses mongoose with that URI.
-- **Cloudflare:** Set **MONGODB_APP_ID** and **MONGODB_API_KEY** (Data API, fetch). On Workers, mongoose is stubbed; Data API is used if configured.
+- **Cloudflare:** Use **D1** (set `CLOUDFLARE_D1_DATABASE_ID`). The `DB` binding is used for measurement storage. If D1 is not configured, the app can fall back to MongoDB Data API (`MONGODB_APP_ID`, `MONGODB_API_KEY`).
 - Set **API_URL** to your Pages URL for the task and wind-stations fallback.
 
 ## Quick checklist
 
-1. Set env vars (especially `MONGODB_APP_ID`, `MONGODB_API_KEY`, `API_URL`, `CRON_SECRET`, `WEATHERLINK_*`).
-2. Deploy with `wrangler --cwd dist pages deploy ...`.
-3. Optional: trigger `/api/cron/measurement` from an external cron if you want more than once per minute.
+1. Create D1 DB and apply schema (see **D1 database** above); set `CLOUDFLARE_D1_DATABASE_ID`.
+2. Set env vars (especially `CLOUDFLARE_D1_DATABASE_ID`, `API_URL`, `CRON_SECRET`, `WEATHERLINK_*`).
+3. Deploy with `wrangler --cwd dist pages deploy ...`.
+4. Optional: run the MongoDB→D1 import script if you have existing measurement data.
+5. Optional: trigger `/api/cron/measurement` from an external cron if you want more than once per minute.
