@@ -1,0 +1,14 @@
+<html>
+
+<body>
+    <div id="weather-widget"></div>
+    <script src="http://localhost:3000/weather-widget.js"></script>
+    <script>
+        WeatherWidget.mount('#weather-widget', {
+            apiUrl: 'http://localhost:3000',
+            debug: true
+        });
+    </script>
+</body>
+
+</html>

@@ -1,15 +1,23 @@
-import { WeatherData } from '~/server/models'
-import type { IMeasurement, IWeatherData } from '~/types'
+import type { IMeasurement, IWeatherData, ICondition } from '~/types'
 
-export const useMeasurement = (measurementToCalc: IMeasurement): IWeatherData => {
+const emptyWeatherData: IWeatherData = { did: '', ts: 0, conditions: [] }
+
+export const useMeasurement = (measurementToCalc: IMeasurement | null | undefined): IWeatherData => {
+	const data = measurementToCalc?.json?.data
+	if (!data) return emptyWeatherData
+
 	let i = 0
-
-	let weatherData = new WeatherData()
+	const weatherData: IWeatherData = {
+		did: data.did ?? '',
+		ts: data.ts ?? 0,
+		conditions: [],
+	}
 
 	try {
-		measurementToCalc.json.data.conditions.forEach((condition) => {
-			weatherData.ts = measurementToCalc.json.data.ts
-			weatherData.conditions[i] = condition
+		weatherData.ts = data.ts ?? 0
+		const conditions = Array.isArray(data.conditions) ? data.conditions : []
+		conditions.forEach((condition) => {
+			weatherData.conditions[i] = { ...condition } as ICondition
 
 			if (condition.temp) weatherData.conditions[i].temp = fahrenheitToCelcius(condition.temp)
 			if (condition.dew_point) weatherData.conditions[i].dew_point = fahrenheitToCelcius(condition.dew_point)

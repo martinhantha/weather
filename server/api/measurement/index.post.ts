@@ -1,60 +1,34 @@
-import { Measurement } from '../../models'
-interface IRequestBody {
-	json: Object
-}
+import * as db from '../../utils/db'
+
 export default defineEventHandler(async (event) => {
 	const body = await readBody(event)
 
-	if (body.json) {
-		const d = new Date(),
-			datestring =
-				d.getFullYear() +
-				'-' +
-				(d.getMonth() + 1) +
-				'-' +
-				d.getDate() +
-				'-' +
-				d.getHours() +
-				'-' +
-				parseInt(d.getMinutes() / 10),
-			filter = { timeid: datestring },
-			current = await Measurement.findOne(filter)
+	if (!body?.json || !db.isConfigured()) return
 
-		if (current) {
-			try {
-				const newMeasurementData = await Measurement.updateOne(filter, {
-					json: body.json,
-				})
-				return {
-					id: newMeasurementData._id,
-					json: newMeasurementData.json,
-				}
-			} catch (err) {
-				console.dir(err)
-				event.res.statusCode = 500
-				return {
-					code: 'ERROR',
-					message: 'Something wrong.',
-				}
-			}
-		} else {
-			try {
-				const newMeasurementData = await Measurement.create({
-					timeid: datestring,
-					json: body.json,
-				})
-				return {
-					id: newMeasurementData._id,
-					json: newMeasurementData.json,
-				}
-			} catch (err) {
-				console.dir(err)
-				event.res.statusCode = 500
-				return {
-					code: 'ERROR',
-					message: 'Something wrong.',
-				}
-			}
+	const d = new Date()
+	const datestring =
+		d.getFullYear() +
+		'-' +
+		(d.getMonth() + 1) +
+		'-' +
+		d.getDate() +
+		'-' +
+		d.getHours() +
+		'-' +
+		String(Math.floor(d.getMinutes() / 10))
+	const filter = { timeid: datestring }
+
+	try {
+		const existing = await db.findOne(filter)
+		if (existing) {
+			await db.updateOne(filter, { $set: { json: body.json } })
+			return { id: existing._id, json: body.json }
 		}
+		const { insertedId } = await db.insertOne({ timeid: datestring, json: body.json })
+		return { id: insertedId, json: body.json }
+	} catch (err) {
+		console.error(err)
+		setResponseStatus(event, 500)
+		return { code: 'ERROR', message: 'Something wrong.' }
 	}
 })

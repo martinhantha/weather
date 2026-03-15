@@ -23,6 +23,7 @@ const STATIONS: IStationConfig[] = [
 const SOUTH_TIROL_CODES = STATIONS.filter((s) => s.source === 'southtyrol').map((s) => s.station_code!).join(',')
 
 const { data, refresh } = await useFetch('/api/measurement')
+console.log(data.value)
 const { data: windStationsData, refresh: refreshWindStations } = await useFetch<Record<string, { station_id: string; ts: number; condition: Partial<ICondition> }>>('/api/wind-stations')
 const { data: southTyrolData, refresh: refreshSouthTyrol } = await useFetch<Record<string, INormalizedSouthTyrolStation>>(
     `/api/southtyrol/sensors?station_codes=${SOUTH_TIROL_CODES}`
@@ -30,6 +31,7 @@ const { data: southTyrolData, refresh: refreshSouthTyrol } = await useFetch<Reco
 const { data: foehnData } = await useFetch<{ contents?: Array<{ imageUrl?: string }> }>('/api/southtyrol/foehn?lang=de')
 const { data: pwsData, refresh: refreshPws } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/pws/observations?stationId=ISARNT29')
 const { data: weatherlinkSatteleData, refresh: refreshWeatherlinkSattele } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/weatherlink/current?stationId=92575')
+const { data: weatherlinkPichlbergData } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/weatherlink/current?stationId=33570')
 
 const summ = 270
 const weatherData = ref(<IWeatherData>{})
@@ -70,6 +72,10 @@ function getStationData(station: IStationConfig): { ts: number; condition: Parti
 		const d = windStationsData.value[station.station_id!]
 		return { ts: d.ts, condition: d.condition }
 	}
+	// Pichlberg (33570): fallback to WeatherLink API when DB/wind-stations is empty (e.g. Cloudflare)
+	if (station.source === 'weatherlink' && station.station_id === '33570' && weatherlinkPichlbergData.value && 'ts' in weatherlinkPichlbergData.value && 'condition' in weatherlinkPichlbergData.value) {
+		return { ts: weatherlinkPichlbergData.value.ts, condition: weatherlinkPichlbergData.value.condition }
+	}
 	if (station.source === 'weatherlink' && station.station_id === '92575') {
 		// #region agent log
 		
@@ -93,7 +99,9 @@ const selectedCondition = computed(() => {
 	if (!station) return null
 	if (station.source === 'weatherlink' && station.station_id === '33570') {
 		if (weatherData.value?.conditions?.[0]) return weatherData.value.conditions[0]
-		return null
+		// Fallback to WeatherLink API when DB/measurement is empty (e.g. Cloudflare)
+		const fallback = getStationData(station)
+		return fallback?.condition ?? null
 	}
 	const data = getStationData(station)
 	return data?.condition ?? null
@@ -115,7 +123,7 @@ const selectedTs = computed(() => {
     const station = STATIONS.find((s) => s.id === selectedStationId.value)
     if (!station) return 0
     if (station.source === 'weatherlink' && station.station_id === '33570')
-        return weatherData.value?.ts ?? 0
+        return weatherData.value?.ts ?? getStationData(station)?.ts ?? 0
     const data = getStationData(station)
     return data?.ts ?? 0
 })
