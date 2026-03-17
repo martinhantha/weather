@@ -144,7 +144,7 @@ async function fetchAll() {
 onMounted(() => {
   if (props.debug) log('Widget mounted')
   fetchAll()
-  const t = setInterval(fetchAll, 20000)
+  const t = setInterval(fetchAll, 2000)
   return () => clearInterval(t)
 })
 </script>
@@ -171,7 +171,7 @@ onMounted(() => {
     <section v-else class="w-section">
       <header class="w-header">
         <h2 class="w-title">Windübersicht</h2>
-        <p class="w-subtitle">Live-Messwerte aus Berg- und Talstationen (Sarntal).</p>
+        <p class="w-subtitle">Live-Messwerte aus Berg- und Tal (Sarntal).</p>
       </header>
       <div class="w-grid">
         <article
@@ -313,8 +313,14 @@ onMounted(() => {
 }
 .w-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: 1fr;
   gap: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .w-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .w-card {
   border: 2px solid #e5e7eb;

@@ -184,7 +184,7 @@ onMounted(() => {
             </div>
         </header>
 
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <article
                 v-for="station in STATIONS"
                 :key="station.id"
@@ -227,7 +227,7 @@ onMounted(() => {
                         </span>
                         <span class="hidden text-gray-300 sm:inline">·</span>
                         <span class="text-gray-600">
-                            <span class="font-semibold">{{ getStationData(station)!.condition.wind_speed_avg_last_10_min ?? '—' }}</span> km/h 10′ Ø
+                            <span>{{ getStationData(station)!.condition.wind_speed_avg_last_10_min ?? '—' }}</span> km/h 10′ Ø
                         </span>
                     </div>
 

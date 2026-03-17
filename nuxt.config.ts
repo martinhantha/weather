@@ -32,30 +32,12 @@ export default defineNuxtConfig({
 	},
 	nitro: {
 		plugins: ['~/server/index.ts'],
-		preset: 'cloudflare_pages',
-		compatibilityDate: '2024-09-23',
+		// Use a Node-compatible preset so mongoose/mongodb can be bundled.
+		// This avoids Cloudflare worker limitations and the "@mongodb-js/zstd" resolution error.
+		preset: 'node-server',
 		experimental: {
 			tasks: true,
 		},
-		// Cloudflare Cron Trigger: fetch Pichlberg every minute (min interval on CF)
-		scheduledTasks: {
-			'* * * * *': ['pichlberg:measurement'],
-		},
-		cloudflare: {
-			nodeCompat: true,
-			deployConfig: true,
-			wrangler: {
-				triggers: { crons: ['* * * * *'] },
-				d1_databases: [
-					{
-						binding: 'DB',
-						database_name: 'weatherpichlberg',
-						database_id: process.env.CLOUDFLARE_D1_DATABASE_ID || '',
-					},
-				],
-			},
-		},
-		// Stub mongoose/mongodb so Cloudflare build succeeds (D1 is used at runtime; db-node still bundled)
 	},
 	modules: ['nuxt-scheduler', '@nuxtjs/tailwindcss'],
 	css: ['~/assets/css/tailwind.css'],
