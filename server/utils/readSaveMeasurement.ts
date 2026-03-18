@@ -4,7 +4,6 @@
  * @param baseUrl Optional origin (e.g. from getRequestURL(event).origin) for POST when in request context
  */
 export async function readSaveMeasurement(baseUrl?: string): Promise<{ ok: boolean; error?: string }> {
-	const config = useRuntimeConfig()
 	const sourceUrl = 'http://89.190.166.17:8081/v1/current_conditions'
     console.log('sourceUrl', sourceUrl)
 
