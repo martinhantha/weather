@@ -28,11 +28,13 @@ export async function readSaveMeasurement(baseUrl?: string): Promise<{ ok: boole
 	const measurementUrl = baseUrl ? `${baseUrl.replace(/\/$/, '')}/api/measurement` : '/api/measurement'
 	const result = await $fetch(measurementUrl, {
 		method: 'post',
-		body: { json: response },
-	}).catch((e) => {
-		console.error('[readSaveMeasurement] POST failed:', e)
+		// In $fetch (ofetch), `body` is the payload; passing `{ json: ... }` would wrap it.
+		body: response,
+	}).catch((error: unknown) => {
+		console.error('[readSaveMeasurement] POST failed:', (error as { data?: unknown })?.data ?? error)
 		return null
 	})
+    console.log('result', result)
 
 	if (!result) return { ok: false, error: 'Failed to POST measurement' }
 	return { ok: true }
