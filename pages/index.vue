@@ -43,7 +43,7 @@ const directionScalar = ref('0deg')
 
 function degToDir(deg: number): string {
     const number = Math.round(deg / 22.5 + 0.5)
-    const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+    const directions = ['N', 'NNO', 'NO', 'ONO', 'O', 'OSO', 'SO', 'SSO', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
     return directions[number % 16]
 }
 

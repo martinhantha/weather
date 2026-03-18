@@ -74,7 +74,7 @@ function windDirDeg(cond: Partial<ICondition> | null, stationId: string): number
 
 function degToDir(deg: number): string {
   const n = Math.round(deg / 22.5 + 0.5)
-  const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+  const dirs = ['N', 'NNO', 'NO', 'ONO', 'O', 'OSO', 'SO', 'SSO', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
   return dirs[n % 16]
 }
 
