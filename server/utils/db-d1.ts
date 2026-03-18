@@ -43,7 +43,7 @@ function rowToDoc(row: unknown): MeasurementDoc {
 	}
 }
 
-export async function findOne(
+export async function d1FindOne(
 	event: H3Event | undefined,
 	filter: Record<string, unknown>,
 	sort?: Record<string, 1 | -1>

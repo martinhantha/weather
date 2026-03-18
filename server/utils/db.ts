@@ -27,7 +27,7 @@ export async function findOne(
 	filter: Record<string, unknown>,
 	sort?: Record<string, 1 | -1>
 ): Promise<MeasurementDoc | null> {
-	if (hasD1(event)) return dbD1.findOne(event, filter, sort)
+	if (hasD1(event)) return dbD1.d1FindOne(event, filter, sort)
 	const node = await import('./db-node')
 	return node.nodeFindOne(filter, sort)
 }
