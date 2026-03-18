@@ -207,7 +207,6 @@ onMounted(() => {
             </div>
             <div class="w-row">
               <div class="w-dir-wrap">
-                <span class="w-label">Richtung</span>
                 <span class="w-dir">
                   {{ getStationData(station)!.condition.wind_dir_last != null ? degToDir(windDirDeg(getStationData(station)!.condition, station.id)) : '—' }}
                 </span>
@@ -240,25 +239,12 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.w-root {
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 14px;
-  color: #111827;
-  line-height: 1.5;
-  min-height: 120px;
-  background: #f9fafb;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 12px;
-  box-sizing: border-box;
-}
 .w-debug {
   background: #1e293b;
   color: #e2e8f0;
   padding: 12px;
   border-radius: 6px;
   margin-bottom: 12px;
-  font-size: 12px;
   max-height: 280px;
   overflow: auto;
 }
@@ -407,8 +393,8 @@ onMounted(() => {
   color: #111827;
 }
 .w-arrow {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
 }
 .w-temp {
   display: flex;
