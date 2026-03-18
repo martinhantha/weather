@@ -18,20 +18,71 @@ export interface WeatherWidgetOptions {
  *   </script>
  */
 function mount(selectorOrElement: string | HTMLElement, options: WeatherWidgetOptions): { unmount: () => void } {
-  const el = typeof selectorOrElement === 'string'
+  const host = typeof selectorOrElement === 'string'
     ? document.querySelector(selectorOrElement)
     : selectorOrElement
-  if (!el || !(el instanceof HTMLElement)) {
+  if (!host || !(host instanceof HTMLElement)) {
     throw new Error('WeatherWidget.mount: element not found or invalid')
   }
   if (!options?.apiUrl) {
     throw new Error('WeatherWidget.mount: options.apiUrl is required')
   }
+
+  // Shadow DOM isolates the widget from page CSS (page-to-widget), without iframes.
+  const shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' })
+  shadow.innerHTML = ''
+
+  const mountEl = document.createElement('div')
+  shadow.appendChild(mountEl)
+
+  const movedStyleEls: HTMLStyleElement[] = []
+
+  function isWidgetStyleEl(node: Node): node is HTMLStyleElement {
+    if (!(node instanceof HTMLStyleElement)) return false
+    // Vue scoped styles always contain the generated `data-v-...` attribute selector.
+    const text = node.textContent ?? ''
+    return text.includes('.w-root') && text.includes('data-v-')
+  }
+
+  function moveWidgetStyleElsFromHead() {
+    for (const node of Array.from(document.head.querySelectorAll('style'))) {
+      if (!isWidgetStyleEl(node)) continue
+      movedStyleEls.push(node)
+      shadow.appendChild(node) // moves the node out of <head> into shadow root
+    }
+  }
+
+  // Vue injects the widget's <style> tags when the bundle is evaluated,
+  // which happens *before* mount() is called. So move existing styles immediately.
+  moveWidgetStyleElsFromHead()
+
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of Array.from(mutation.addedNodes)) {
+        if (!isWidgetStyleEl(node)) continue
+        movedStyleEls.push(node)
+        shadow.appendChild(node) // keeps widget styling isolated in the shadow root
+      }
+    }
+  })
+  observer.observe(document.head, { childList: true })
+
   const app = createApp(Widget, { apiUrl: options.apiUrl, debug: options.debug === true })
-  app.mount(el)
+  app.mount(mountEl)
+
   return {
     unmount() {
+      observer.disconnect()
       app.unmount()
+      // Move styles back to document.head so a later mount still has them,
+      // and so we don't leave styling behind in the shadow root.
+      for (const styleEl of movedStyleEls) {
+        if (styleEl && styleEl.parentNode && styleEl.parentNode !== document.head) {
+          document.head.appendChild(styleEl)
+        }
+      }
+      shadow.innerHTML = ''
+      movedStyleEls.length = 0
     },
   }
 }

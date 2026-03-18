@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import type { ICondition, IStationConfig } from './types'
+import type { ICondition, IStationConfig } from '../../types'
 
 const props = withDefaults(
     defineProps<{ apiUrl: string; debug?: boolean }>(),
@@ -231,11 +231,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
-:root {
-    font-size: 8px !important;
-}
-
 .w-root {
+    font-size: 15px !important;
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
         'Liberation Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     -webkit-font-smoothing: antialiased;
@@ -282,7 +279,7 @@ onMounted(() => {
 
 .w-loading,
 .w-error {
-    padding: 1rem;
+    padding: 1em;
     text-align: center;
     color: #6b7280;
 }
@@ -296,31 +293,31 @@ onMounted(() => {
 }
 
 .w-header {
-    margin-bottom: 1rem;
-    padding: 1.25rem;
-    border-radius: 0.75rem;
+    margin-bottom: 1em;
+    padding: 1.25em;
+    border-radius: 0.75em;
     border: 1px solid #e5e7eb;
     background: #ffffff;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .w-title {
-    font-size: 1.125rem;
+    font-size: 1.125em;
     font-weight: 600;
     margin: 0;
     color: #111827;
 }
 
 .w-subtitle {
-    font-size: 0.875rem;
+    font-size: 0.875em;
     color: #6b7280;
-    margin: 0.25rem 0 0;
+    margin: 0.25em 0 0;
 }
 
 .w-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 1em;
 }
 
 @media (min-width: 1024px) {
@@ -331,9 +328,9 @@ onMounted(() => {
 
 .w-card {
     border: 1px solid #e5e7eb;
-    border-radius: 0.75rem;
+    border-radius: 0.75em;
     background: #fff;
-    padding: 1.25rem;
+    padding: 1.25em;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     transition: border-color 150ms ease, box-shadow 150ms ease;
 }
@@ -352,22 +349,22 @@ onMounted(() => {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 0.75rem;
-    padding-bottom: 1rem;
+    gap: 0.75em;
+    padding-bottom: 1em;
     border-bottom: 1px solid #f3f4f6;
-    margin-bottom: 1rem;
+    margin-bottom: 1em;
 }
 
 .w-card-top-right {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 0.5rem;
+    gap: 0.5em;
     flex-shrink: 0;
 }
 
 .w-temp-top {
-    font-size: 0.875rem;
+    font-size: 0.875em;
     color: #111827;
     font-weight: 500;
 }
@@ -377,14 +374,14 @@ onMounted(() => {
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: 0.75em;
 }
 
 .w-card-head {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 0.75rem;
+    gap: 0.75em;
 }
 
 .w-station-name {
@@ -396,32 +393,32 @@ onMounted(() => {
 .w-card-meta {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.5em;
     flex-shrink: 0;
 }
 
 .w-time {
-    font-size: 0.75rem;
+    font-size: 0.75em;
     color: #6b7280;
-    tabular-nums: 1;
+    font-variant-numeric: tabular-nums;
 }
 
 .w-live {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
-    font-size: 0.75rem;
+    gap: 0.375em;
+    font-size: 0.75em;
     font-weight: 500;
     color: #047857;
     background: #d1fae5;
     border: 1px solid #34d399;
-    padding: 0.125rem 0.5rem;
+    padding: 0.125em 0.5em;
     border-radius: 9999px;
 }
 
 .w-live-dot {
-    width: 0.375rem;
-    height: 0.375rem;
+    width: 0.375em;
+    height: 0.375em;
     border-radius: 9999px;
     background: #059669;
     animation: w-live-pulse 1.2s ease-in-out infinite;
@@ -445,8 +442,8 @@ onMounted(() => {
 }
 
 .w-card-body {
-    margin-top: 1rem;
-    padding-top: 1rem;
+    margin-top: 1em;
+    padding-top: 1em;
     border-top: 1px solid #f3f4f6;
 }
 
@@ -454,7 +451,7 @@ onMounted(() => {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.25rem 0.5rem;
+    gap: 0.25em 0.5em;
     margin-bottom: 0;
     color: #4b5563;
 }
@@ -470,7 +467,7 @@ onMounted(() => {
 .w-aktuell {
     color: #9ca3af;
     /* gray-400 */
-    font-size: 0.875rem;
+    font-size: 0.875em;
 }
 
 .w-avg {
@@ -506,17 +503,17 @@ onMounted(() => {
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.5em;
 }
 
 .w-dir-wrap {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.5em;
 }
 
 .w-label {
-    font-size: 0.75rem;
+    font-size: 0.75em;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: #6b7280;
@@ -530,18 +527,18 @@ onMounted(() => {
 .w-dir-text {
     font-weight: 600;
     color: #111827;
-    font-size: 0.875rem;
+    font-size: 0.875em;
 }
 
 .w-arrow {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 2.5em;
+    height: 2.5em;
 }
 
 .w-temp {
     display: flex;
     align-items: baseline;
-    gap: 0.375rem;
+    gap: 0.375em;
 }
 
 .w-temp-val {
@@ -550,10 +547,10 @@ onMounted(() => {
 }
 
 .w-no-data {
-    margin-top: 1rem;
-    padding-top: 1rem;
+    margin-top: 1em;
+    padding-top: 1em;
     border-top: 1px solid #f3f4f6;
-    font-size: 0.875rem;
+    font-size: 0.875em;
     color: #6b7280;
 }
 </style>
