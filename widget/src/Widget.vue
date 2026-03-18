@@ -169,10 +169,6 @@ onMounted(() => {
         <div v-if="loading && !error" class="w-loading">Lade Winddaten…</div>
         <div v-else-if="error" class="w-error">{{ error }}</div>
         <section v-else class="w-section">
-            <header class="w-header">
-                <h2 class="w-title">Windübersicht</h2>
-                <p class="w-subtitle">Live-Messwerte aus Berg- und Tal (Sarntal).</p>
-            </header>
             <div class="w-grid">
                 <article v-for="station in STATIONS" :key="station.id" class="w-card">
                     <div v-if="getStationData(station)" class="w-card-inner">
