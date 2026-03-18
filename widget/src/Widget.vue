@@ -232,7 +232,7 @@ onMounted(() => {
 
 <style scoped>
 .w-root {
-    font-size: 15px !important;
+    font-size: 15.5px !important;
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
         'Liberation Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     -webkit-font-smoothing: antialiased;
@@ -317,7 +317,7 @@ onMounted(() => {
 .w-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 1em;
+    gap: 0.7em;
 }
 
 @media (min-width: 1024px) {
@@ -330,7 +330,7 @@ onMounted(() => {
     border: 1px solid #e5e7eb;
     border-radius: 0.75em;
     background: #fff;
-    padding: 1.25em;
+    padding: 1em;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     transition: border-color 150ms ease, box-shadow 150ms ease;
 }
@@ -350,9 +350,9 @@ onMounted(() => {
     justify-content: space-between;
     align-items: flex-start;
     gap: 0.75em;
-    padding-bottom: 1em;
+    padding-bottom: 0.7em;
     border-bottom: 1px solid #f3f4f6;
-    margin-bottom: 1em;
+    margin-bottom: 0.7em;
 }
 
 .w-card-top-right {
@@ -409,10 +409,7 @@ onMounted(() => {
     gap: 0.375em;
     font-size: 0.75em;
     font-weight: 500;
-    color: #047857;
-    background: #d1fae5;
-    border: 1px solid #34d399;
-    padding: 0.125em 0.5em;
+    padding: 0 0.5em;
     border-radius: 9999px;
 }
 
