@@ -195,16 +195,16 @@ onMounted(() => {
                         <div class="w-card-bottom">
                             <div class="w-winds">
                                 <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_last)">
-                                    <strong>{{ getStationData(station)!.condition.wind_speed_last ?? '—' }}</strong> km/h
+                                    <strong>{{ getStationData(station)!.condition.wind_speed_last ?? '—' }}</strong><span class="w-wind-unit-small"> km/h</span>
                                 </span>
                                 <span class="w-aktuell">aktuell</span>
                                 <span class="w-dot">·</span>
                                 <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_hi_last_10_min)">
-                                    <strong>{{ getStationData(station)!.condition.wind_speed_hi_last_10_min ?? '—' }}</strong> km/h 10′ max
+                                    <strong>{{ getStationData(station)!.condition.wind_speed_hi_last_10_min ?? '—' }}</strong><span class="w-wind-unit-small"> km/h 10′ max</span>
                                 </span>
                                 <span class="w-dot">·</span>
                                 <span class="w-avg">
-                                    <strong>{{ getStationData(station)!.condition.wind_speed_avg_last_10_min ?? '—' }}</strong> km/h 10′ Ø
+                                    <strong>{{ getStationData(station)!.condition.wind_speed_avg_last_10_min ?? '—' }}</strong><span class="w-wind-unit-small"> km/h 10′ Ø</span>
                                 </span>
                             </div>
 
@@ -401,6 +401,11 @@ onMounted(() => {
     font-size: 0.75em;
     color: #6b7280;
     font-variant-numeric: tabular-nums;
+}
+
+.w-wind-unit-small {
+    font-size: 0.75em;
+    color: inherit;
 }
 
 .w-live {

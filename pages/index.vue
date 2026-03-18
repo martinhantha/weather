@@ -133,7 +133,7 @@ const selectedStationName = computed(() =>
 )
 
 function update() {
-    weatherData.value = useMeasurement(<IMeasurement>data.value)
+    weatherData.value = useMeasurement(data.value as unknown as IMeasurement)
     const cond = selectedCondition.value
     const sid = selectedStationId.value
     if (cond) {
@@ -214,16 +214,16 @@ onMounted(() => {
                     <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-base text-gray-600 justify-between">
                         <div class="flex items-center gap-2">
                             <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_last)">
-                                <span class="font-semibold">{{ getStationData(station)!.condition.wind_speed_last ?? '—' }}</span> km/h
+                                <span class="font-semibold">{{ getStationData(station)!.condition.wind_speed_last ?? '—' }}</span><span class="text-sm"> km/h</span>
                             </span>
                             <span class="text-gray-400">aktuell</span>
                             <span class="hidden text-gray-300 sm:inline">·</span>
                             <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_hi_last_10_min)">
-                                <span class="font-semibold">{{ getStationData(station)!.condition.wind_speed_hi_last_10_min ?? '—' }}</span> km/h 10′ max
+                                <span class="font-semibold">{{ getStationData(station)!.condition.wind_speed_hi_last_10_min ?? '—' }}</span><span class="text-sm"> km/h 10′ max</span>
                             </span>
                             <span class="hidden text-gray-300 sm:inline">·</span>
                             <span class="text-gray-600">
-                                <span>{{ getStationData(station)!.condition.wind_speed_avg_last_10_min ?? '—' }}</span> km/h 10′ Ø
+                                <span>{{ getStationData(station)!.condition.wind_speed_avg_last_10_min ?? '—' }}</span><span class="text-sm"> km/h 10′ Ø</span>
                             </span>
                         </div>
                         <div class="flex items-center gap-2 align-end">
@@ -412,19 +412,19 @@ onMounted(() => {
                         </dd>
                     </div>
                     <div class="space-y-0.5 rounded-lg bg-gray-50 p-3">
-                        <dt class="text-xs uppercase tracking-wider text-gray-500">
+                        <dt class="text-[11px] uppercase tracking-wider text-gray-500">
                             10′ Ø
                         </dt>
                         <dd class="font-semibold text-gray-900">
-                            {{ selectedCondition.wind_speed_avg_last_10_min ?? '—' }} km/h
+                            {{ selectedCondition.wind_speed_avg_last_10_min ?? '—' }} <span class="text-xs">km/h</span>
                         </dd>
                     </div>
                     <div class="space-y-0.5 rounded-lg bg-gray-50 p-3">
-                        <dt class="text-xs uppercase tracking-wider text-gray-500">
+                        <dt class="text-[11px] uppercase tracking-wider text-gray-500">
                             10′ max
                         </dt>
                         <dd :class="['font-semibold', windSpeedColor(selectedCondition.wind_speed_hi_last_10_min)]">
-                            {{ selectedCondition.wind_speed_hi_last_10_min ?? '—' }} km/h
+                            {{ selectedCondition.wind_speed_hi_last_10_min ?? '—' }} <span class="text-xs">km/h</span>
                         </dd>
                     </div>
                     <div class="space-y-0.5 rounded-lg bg-gray-50 p-3">
