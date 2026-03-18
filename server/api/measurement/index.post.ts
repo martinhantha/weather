@@ -17,7 +17,6 @@ export default defineEventHandler(async (event) => {
 		'-' +
 		String(Math.floor(d.getMinutes() / 10))
 	const filter = { timeid: datestring }
-    console.log(filter)
     
 
 	try {
