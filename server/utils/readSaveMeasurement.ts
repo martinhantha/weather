@@ -6,18 +6,34 @@
 export async function readSaveMeasurement(baseUrl?: string): Promise<{ ok: boolean; error?: string }> {
 	const sourceUrl = 'http://89.190.166.17:8081/v1/current_conditions'
 
-	const response = await $fetch(sourceUrl).catch((error: unknown) => {
+	const raw = await $fetch(sourceUrl).catch((error: unknown) => {
 		console.error('[readSaveMeasurement] fetch failed:', (error as { data?: unknown })?.data ?? error)
 		return null
 	})
+
+	let response: unknown = raw
+	if (typeof raw === 'string') {
+		try {
+			response = JSON.parse(raw)
+		} catch (e) {
+			console.error('[readSaveMeasurement] JSON parse failed:', e)
+			return { ok: false, error: 'Invalid JSON from source' }
+		}
+	}
+
 	if (!response || typeof response !== 'object') {
-		return { ok: false, error: 'No data from source' }
+		return { ok: false, error: 'No JSON object from source' }
 	}
 
 	const measurementUrl = baseUrl ? `${baseUrl.replace(/\/$/, '')}/api/measurement` : '/api/measurement'
 	const result = await $fetch(measurementUrl, {
 		method: 'post',
 		body: { json: response },
-	}).catch((e) => console.error('[readSaveMeasurement] POST failed:', e))
+	}).catch((e) => {
+		console.error('[readSaveMeasurement] POST failed:', e)
+		return null
+	})
+
+	if (!result) return { ok: false, error: 'Failed to POST measurement' }
 	return { ok: true }
 }
