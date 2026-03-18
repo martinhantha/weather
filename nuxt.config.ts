@@ -35,6 +35,8 @@ export default defineNuxtConfig({
 		// Use a Node-compatible preset so mongoose/mongodb can be bundled.
 		// This avoids Cloudflare worker limitations and the "@mongodb-js/zstd" resolution error.
 		preset: 'node-server',
+		// Pin Nitro compatibility date to silence warnings and ensure stable runtime behavior
+		compatibilityDate: '2026-03-18',
 		experimental: {
 			tasks: true,
 		},

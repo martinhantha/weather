@@ -2,7 +2,6 @@
  * GET /api/debug/db — Check if the app can read from DB (D1 or mongoose/URI).
  */
 import * as db from '../../utils/db'
-import * as dbD1 from '../../utils/db-d1'
 
 export default defineEventHandler(async (event) => {
 	const configured = db.isConfigured(event)
@@ -18,9 +17,10 @@ export default defineEventHandler(async (event) => {
 		}
 	}
 
-	const useD1 = dbD1.isConfigured(event)
 	const config = useRuntimeConfig()
 	const useUri = Boolean((config.mongoUrl as string)?.trim())
+	// If db is configured and no URI is present, we infer D1
+	const useD1 = configured && !useUri
 	const connectionLabel = useD1 ? 'd1' : useUri ? 'mongoose_uri' : 'none'
 
 	return {
