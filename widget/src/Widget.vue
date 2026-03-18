@@ -197,7 +197,7 @@ onMounted(() => {
                                 <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_last)">
                                     <strong>{{ getStationData(station)!.condition.wind_speed_last ?? '—' }}</strong><span class="w-wind-unit-small"> km/h</span>
                                 </span>
-                                <span class="w-aktuell">aktuell</span>
+                                <span class="w-wind-unit-small">aktuell</span>
                                 <span class="w-dot">·</span>
                                 <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_hi_last_10_min)">
                                     <strong>{{ getStationData(station)!.condition.wind_speed_hi_last_10_min ?? '—' }}</strong><span class="w-wind-unit-small"> km/h 10′ max</span>
@@ -232,7 +232,7 @@ onMounted(() => {
 
 <style scoped>
 .w-root {
-    font-size: 15.5px !important;
+    font-size: 16px !important;
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
         'Liberation Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     -webkit-font-smoothing: antialiased;
@@ -350,9 +350,9 @@ onMounted(() => {
     justify-content: space-between;
     align-items: flex-start;
     gap: 0.75em;
-    padding-bottom: 0.7em;
+    padding-bottom: 0.5em;
     border-bottom: 1px solid #f3f4f6;
-    margin-bottom: 0.7em;
+    margin-bottom: 0.5em;
 }
 
 .w-card-top-right {
@@ -404,8 +404,8 @@ onMounted(() => {
 }
 
 .w-wind-unit-small {
-    font-size: 0.75em;
-    color: inherit;
+    font-size: 0.65em;
+    color: #6b7280; /* neutral gray-500; do not inherit wind-speed color */
 }
 
 .w-live {
