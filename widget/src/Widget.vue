@@ -197,7 +197,6 @@ onMounted(() => {
                                 <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_last)">
                                     <strong>{{ getStationData(station)!.condition.wind_speed_last ?? '—' }}</strong><span class="w-wind-unit-small"> km/h</span>
                                 </span>
-                                <span class="w-wind-unit-small">aktuell</span>
                                 <span class="w-dot">·</span>
                                 <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_hi_last_10_min)">
                                     <strong>{{ getStationData(station)!.condition.wind_speed_hi_last_10_min ?? '—' }}</strong><span class="w-wind-unit-small"> km/h 10′ max</span>
