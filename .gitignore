@@ -26,3 +26,4 @@ logs
 *.sql
 
 *.code-workspace
+public/weather-widget.js
