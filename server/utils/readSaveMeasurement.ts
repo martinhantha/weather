@@ -5,7 +5,7 @@
  */
 export async function readSaveMeasurement(baseUrl?: string): Promise<{ ok: boolean; error?: string }> {
 	const config = useRuntimeConfig()
-	const sourceUrl = (config.pichlbergSourceUrl as string)?.trim() || 'https://weather.hantha.digital/v1/current_conditions'
+	const sourceUrl = (config.pichlbergSourceUrl as string)?.trim() || 'http://89.190.166.17:8081/v1/current_conditions'
 
 	const response = await $fetch(sourceUrl).catch((error: unknown) => {
 		console.error('[readSaveMeasurement] fetch failed:', (error as { data?: unknown })?.data ?? error)
