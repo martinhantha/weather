@@ -4,7 +4,7 @@
  */
 import type { H3Event } from 'h3'
 
-export type MeasurementDoc = { _id?: string; timeid?: string; json?: unknown }
+type MeasurementDoc = { _id?: string; timeid?: string; json?: unknown }
 
 type D1Binding = {
 	prepare: (sql: string) => {
@@ -22,7 +22,7 @@ function getD1(event: H3Event | undefined): D1Binding | null {
 	return fromRuntime ?? fromContext ?? null
 }
 
-export function isConfigured(event: H3Event | undefined): boolean {
+export function d1IsConfigured(event: H3Event | undefined): boolean {
 	return getD1(event) !== null
 }
 
@@ -66,7 +66,7 @@ export async function findOne(
 	return rowToDoc(row)
 }
 
-export async function find(
+export async function d1Find(
 	event: H3Event | undefined,
 	filter: Record<string, unknown>,
 	opts: { sort?: Record<string, 1 | -1>; limit?: number } = {}
@@ -98,7 +98,7 @@ export async function find(
 	return rows.map(rowToDoc)
 }
 
-export async function insertOne(event: H3Event | undefined, document: Record<string, unknown>): Promise<{ insertedId: string }> {
+export async function d1InsertOne(event: H3Event | undefined, document: Record<string, unknown>): Promise<{ insertedId: string }> {
 	const db = getD1(event)
 	if (!db) throw new Error('D1 not configured')
 
@@ -110,7 +110,7 @@ export async function insertOne(event: H3Event | undefined, document: Record<str
 	return { insertedId: id }
 }
 
-export async function updateOne(
+export async function d1UpdateOne(
 	event: H3Event | undefined,
 	filter: Record<string, unknown>,
 	update: Record<string, unknown>

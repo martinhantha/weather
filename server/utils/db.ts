@@ -8,7 +8,7 @@ import * as dbD1 from './db-d1'
 export type MeasurementDoc = { _id?: string; timeid?: string; json?: unknown }
 
 function hasD1(event: H3Event | undefined): boolean {
-	return dbD1.isConfigured(event)
+	return dbD1.d1IsConfigured(event)
 }
 
 function useUri(): boolean {
@@ -29,7 +29,7 @@ export async function findOne(
 ): Promise<MeasurementDoc | null> {
 	if (hasD1(event)) return dbD1.findOne(event, filter, sort)
 	const node = await import('./db-node')
-	return node.findOne(filter, sort)
+	return node.nodeFindOne(filter, sort)
 }
 
 export async function find(
@@ -37,15 +37,15 @@ export async function find(
 	filter: Record<string, unknown>,
 	opts: { sort?: Record<string, 1 | -1>; limit?: number } = {}
 ): Promise<MeasurementDoc[]> {
-	if (hasD1(event)) return dbD1.find(event, filter, opts)
+	if (hasD1(event)) return dbD1.d1Find(event, filter, opts)
 	const node = await import('./db-node')
-	return node.find(filter, opts)
+	return node.nodeFind(filter, opts)
 }
 
 export async function insertOne(event: H3Event | undefined, document: Record<string, unknown>): Promise<{ insertedId: string }> {
-	if (hasD1(event)) return dbD1.insertOne(event, document)
+	if (hasD1(event)) return dbD1.d1InsertOne(event, document)
 	const node = await import('./db-node')
-	return node.insertOne(document)
+	return node.nodeInsertOne(document)
 }
 
 export async function updateOne(
@@ -53,7 +53,7 @@ export async function updateOne(
 	filter: Record<string, unknown>,
 	update: Record<string, unknown>
 ): Promise<{ matchedCount: number; modifiedCount: number }> {
-	if (hasD1(event)) return dbD1.updateOne(event, filter, update)
+	if (hasD1(event)) return dbD1.d1UpdateOne(event, filter, update)
 	const node = await import('./db-node')
-	return node.updateOne(filter, update)
+	return node.nodeUpdateOne(filter, update)
 }

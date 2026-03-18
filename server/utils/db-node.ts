@@ -3,7 +3,7 @@
  */
 import { Measurement } from '../models/measurement.model'
 
-export type MeasurementDoc = { _id?: string; timeid?: string; json?: unknown }
+type MeasurementDoc = { _id?: string; timeid?: string; json?: unknown }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const M = Measurement as any
@@ -16,12 +16,12 @@ function idToString(doc: { _id?: unknown }): string | undefined {
 	return String((doc._id as { toString?: () => string })?.toString?.() ?? doc._id)
 }
 
-export function isConfigured(): boolean {
+export function nodeIsConfigured(): boolean {
 	const config = useRuntimeConfig()
 	return Boolean((config.mongoUrl as string)?.trim())
 }
 
-export async function findOne(filter: Record<string, unknown>, sort?: Record<string, 1 | -1>): Promise<MeasurementDoc | null> {
+export async function nodeFindOne(filter: Record<string, unknown>, sort?: Record<string, 1 | -1>): Promise<MeasurementDoc | null> {
 	let q = M.findOne(filter).select('json timeid')
 	if (sort && Object.keys(sort).length) q = q.sort(sort)
 	const doc = await q.lean()
@@ -30,7 +30,7 @@ export async function findOne(filter: Record<string, unknown>, sort?: Record<str
 	return { _id: idToString(d), timeid: d.timeid, json: d.json }
 }
 
-export async function find(
+export async function nodeFind(
 	filter: Record<string, unknown>,
 	opts: { sort?: Record<string, 1 | -1>; limit?: number } = {}
 ): Promise<MeasurementDoc[]> {
@@ -47,12 +47,12 @@ export async function find(
 	})
 }
 
-export async function insertOne(document: Record<string, unknown>): Promise<{ insertedId: string }> {
+export async function nodeInsertOne(document: Record<string, unknown>): Promise<{ insertedId: string }> {
 	const created = await M.create(document)
 	return { insertedId: idToString(created) ?? '' }
 }
 
-export async function updateOne(
+export async function nodeUpdateOne(
 	filter: Record<string, unknown>,
 	update: Record<string, unknown>
 ): Promise<{ matchedCount: number; modifiedCount: number }> {
