@@ -36,44 +36,65 @@ function num(v: unknown): number | undefined {
 	return undefined
 }
 
-function pickFirstCondition(sensors: WlSensor[]): { ts: number; condition: Partial<ICondition> } | null {
-	for (const s of sensors || []) {
-		const d = s.data?.[0] as Record<string, unknown> | undefined
-		if (!d || typeof d.ts !== 'number') continue
-		const temp = num(d.temp) ?? num(d.temp_out)
-		// Sattele (92575) and some stations use wind_speed / wind_speed_10_min_avg / wind_dir (no _last suffix), often in km/h
-		const hasAlternateWind = d.wind_speed != null || d.wind_speed_10_min_avg != null
-		const wind = hasAlternateWind
-			? (num(d.wind_speed) ?? num(d.wind_speed_last))
-			: (num(d.wind_speed_last) ?? num(d.wind_speed))
-		const wind10 = hasAlternateWind
-			? (num(d.wind_speed_10_min_avg) ?? num(d.wind_speed_avg_last_10_min))
-			: (num(d.wind_speed_avg_last_10_min) ?? num(d.wind_speed_10_min_avg))
-		const windDir = num(d.wind_dir_last) ?? num(d.wind_dir)
-		const windFromAlternate = hasAlternateWind
-		const toKmh = (v: number) => (windFromAlternate ? Math.round(v) : mphToKmh(v))
-		if (temp == null && wind == null && wind10 == null) continue
-		const ts = d.ts as number
-		// 10' max: when sensor uses alternate fields, prefer wind_speed_10_min_hi / wind_gust so 0 in wind_speed_hi_last_10_min doesn't override
-		const hiRaw = hasAlternateWind
-			? (num(d.wind_speed_10_min_hi) ?? num((d as Record<string, unknown>).wind_gust) ?? num(d.wind_speed_hi_last_10_min))
-			: (num(d.wind_speed_hi_last_10_min) ?? num(d.wind_speed_10_min_hi) ?? num((d as Record<string, unknown>).wind_gust))
-		const hiVal = (hiRaw ?? wind ?? wind10) != null ? toKmh((hiRaw ?? wind ?? wind10)!) : undefined
-		const currentVal = wind != null ? toKmh(wind) : (wind10 != null ? toKmh(wind10) : hiVal)
-		const avg10Val = wind10 != null ? toKmh(wind10) : (wind != null ? toKmh(wind) : hiVal)
-		const condition: Partial<ICondition> = {
-			temp: temp != null ? fahrenheitToCelsius(temp) : undefined,
-			hum: num(d.hum) ?? num(d.hum_in) ?? num(d.hum_out),
-			wind_dir_last: windDir,
-			wind_dir_scalar_avg_last_10_min: num(d.wind_dir_scalar_avg_last_10_min) ?? windDir,
-			wind_speed_last: currentVal,
-			wind_speed_avg_last_10_min: avg10Val,
-			wind_speed_hi_last_10_min: hiVal,
-			wet_bulb: num(d.wet_bulb) != null ? fahrenheitToCelsius(num(d.wet_bulb)!) : undefined,
-		}
-		return { ts, condition }
+/** Build condition from one sensor data row; returns null if no useful data. */
+function conditionFromSensorData(d: Record<string, unknown>): { ts: number; condition: Partial<ICondition> } | null {
+	if (!d || typeof d.ts !== 'number') return null
+	const temp = num(d.temp) ?? num(d.temp_out)
+	const hasAlternateWind = d.wind_speed != null || d.wind_speed_10_min_avg != null
+	const wind = hasAlternateWind
+		? (num(d.wind_speed) ?? num(d.wind_speed_last))
+		: (num(d.wind_speed_last) ?? num(d.wind_speed))
+	const wind10 = hasAlternateWind
+		? (num(d.wind_speed_10_min_avg) ?? num(d.wind_speed_avg_last_10_min))
+		: (num(d.wind_speed_avg_last_10_min) ?? num(d.wind_speed_10_min_avg))
+	const windDir = num(d.wind_dir_last) ?? num(d.wind_dir)
+	const windFromAlternate = hasAlternateWind
+	const toKmh = (v: number) => (windFromAlternate ? Math.round(v) : mphToKmh(v))
+	if (temp == null && wind == null && wind10 == null) return null
+	const ts = d.ts as number
+	const hiRaw = hasAlternateWind
+		? (num(d.wind_speed_10_min_hi) ?? num((d as Record<string, unknown>).wind_gust) ?? num(d.wind_speed_hi_last_10_min))
+		: (num(d.wind_speed_hi_last_10_min) ?? num(d.wind_speed_10_min_hi) ?? num((d as Record<string, unknown>).wind_gust))
+	const hiVal = (hiRaw ?? wind ?? wind10) != null ? toKmh((hiRaw ?? wind ?? wind10)!) : undefined
+	const currentVal = wind != null ? toKmh(wind) : (wind10 != null ? toKmh(wind10) : hiVal)
+	const avg10Val = wind10 != null ? toKmh(wind10) : (wind != null ? toKmh(wind) : hiVal)
+	const condition: Partial<ICondition> = {
+		temp: temp != null ? fahrenheitToCelsius(temp) : undefined,
+		hum: num(d.hum) ?? num(d.hum_in) ?? num(d.hum_out),
+		wind_dir_last: windDir,
+		wind_dir_scalar_avg_last_10_min: num(d.wind_dir_scalar_avg_last_10_min) ?? windDir,
+		wind_speed_last: currentVal,
+		wind_speed_avg_last_10_min: avg10Val,
+		wind_speed_hi_last_10_min: hiVal,
+		wet_bulb: num(d.wet_bulb) != null ? fahrenheitToCelsius(num(d.wet_bulb)!) : undefined,
 	}
-	return null
+	return { ts, condition }
+}
+
+/** Pick first condition, then merge wind from any other sensor (e.g. Pichlberg 33570 has separate wind sensor). */
+function pickFirstCondition(sensors: WlSensor[]): { ts: number; condition: Partial<ICondition> } | null {
+	const list: { ts: number; condition: Partial<ICondition> }[] = []
+	for (const s of sensors || []) {
+		const d = s.data?.[0]
+		if (!d || typeof d !== 'object') continue
+		const one = conditionFromSensorData(d as Record<string, unknown>)
+		if (one) list.push(one)
+	}
+	const base = list[0]
+	if (!base) return null
+	const merged = { ...base.condition }
+	for (let i = 1; i < list.length; i++) {
+		const c = list[i]?.condition
+		if (!c) continue
+		if (c.wind_speed_last != null || c.wind_speed_avg_last_10_min != null || c.wind_speed_hi_last_10_min != null) {
+			if (c.wind_speed_last != null) merged.wind_speed_last = c.wind_speed_last
+			if (c.wind_speed_avg_last_10_min != null) merged.wind_speed_avg_last_10_min = c.wind_speed_avg_last_10_min
+			if (c.wind_speed_hi_last_10_min != null) merged.wind_speed_hi_last_10_min = c.wind_speed_hi_last_10_min
+			if (c.wind_dir_last != null) merged.wind_dir_last = c.wind_dir_last
+			if (c.wind_dir_scalar_avg_last_10_min != null) merged.wind_dir_scalar_avg_last_10_min = c.wind_dir_scalar_avg_last_10_min
+		}
+	}
+	return { ts: base.ts, condition: merged }
 }
 
 function dbg(payload: Record<string, unknown>) {

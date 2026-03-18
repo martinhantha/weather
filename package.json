@@ -3,12 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "nuxt build",
+    "build": "yarn build:widget && nuxt build",
+    "build:widget": "cd widget && yarn install && yarn build && mkdir -p ../public && cp -r dist/* ../public/",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "start": "nuxt start"
+    "start": "nuxt start",
+    "deploy:cloudflare": "yarn build && npx wrangler --cwd dist pages deploy . --branch master --project-name=weather",
+    "preview:cloudflare": "yarn build && npx wrangler --cwd dist pages dev",
+    "test:mongo": "node --env-file=.env scripts/test-mongo.js",
+    "poll:measurement": "node --env-file=.env scripts/poll-measurement.mjs"
   },
   "devDependencies": {
     "@nuxt/devtools": "latest",
