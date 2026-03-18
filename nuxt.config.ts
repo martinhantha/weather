@@ -15,7 +15,7 @@ export default defineNuxtConfig({
 		cronSecret: process.env.CRON_SECRET,
 		/** Server-only: Pichlberg live source. Used only by scheduler/cron, never exposed to browser. */
 		pichlbergSourceUrl: process.env.PICHLBERG_SOURCE_URL || 'https://weather.hantha.digital/v1/current_conditions',
-		weatherComApiKey: process.env.WEATHER_COM_API_KEY || 'ad186c83f1ab43b1986c83f1aba3b1b4',
+		weatherComApiKey: process.env.WEATHER_COM_API_KEY || 'b14f361ba4134ac38f361ba4135ac371',
 		weatherlinkApiKey: process.env.WEATHERLINK_API_KEY || 'zcmyfzk32xr5itw5oplnxgmuwjby7sym',
 		weatherlinkApiSecret: process.env.WEATHERLINK_API_SECRET || 'p0neabg9fxq6qngxhrf2h3fcfhnz2kbz',
 		public: {

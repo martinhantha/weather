@@ -179,37 +179,40 @@ onMounted(() => {
           :key="station.id"
           class="w-card"
         >
-          <div class="w-card-head">
-            <p class="w-station-name">{{ station.name }}</p>
-            <div class="w-card-meta">
-              <span
-                v-if="getStationData(station)?.ts"
-                class="w-time"
-              >
-                {{ new Date((getStationData(station)!.ts) * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) }}
-              </span>
-              <span v-if="LIVE_STATION_IDS.has(station.id)" class="w-live">● LIVE</span>
-            </div>
-          </div>
-          <div v-if="getStationData(station)" class="w-card-body">
-            <div class="w-winds">
-              <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_last)">
-                <strong>{{ getStationData(station)!.condition.wind_speed_last ?? '—' }}</strong> km/h
-              </span>
-              <span class="w-sep">·</span>
-              <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_hi_last_10_min)">
-                <strong>{{ getStationData(station)!.condition.wind_speed_hi_last_10_min ?? '—' }}</strong> km/h 10′ max
-              </span>
-              <span class="w-sep">·</span>
-              <span class="w-avg">
-                <strong>{{ getStationData(station)!.condition.wind_speed_avg_last_10_min ?? '—' }}</strong> km/h 10′ Ø
-              </span>
-            </div>
-            <div class="w-row">
-              <div class="w-dir-wrap">
-                <span class="w-dir">
-                  {{ getStationData(station)!.condition.wind_dir_last != null ? degToDir(windDirDeg(getStationData(station)!.condition, station.id)) : '—' }}
+          <div v-if="getStationData(station)" class="w-card-inner">
+            <div class="w-card-top">
+              <p class="w-station-name">{{ station.name }}</p>
+              <div class="w-card-top-right">
+                <span v-if="getStationData(station)!.condition.temp != null" class="w-temp-top">
+                  {{ getStationData(station)!.condition.temp }} °C
                 </span>
+                <span v-if="getStationData(station)?.ts" class="w-time">
+                  {{ new Date(getStationData(station)!.ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) }}
+                </span>
+                <span v-if="LIVE_STATION_IDS.has(station.id)" class="w-live">
+                  <span class="w-live-dot" />
+                  LIVE
+                </span>
+              </div>
+            </div>
+
+            <div class="w-card-bottom">
+              <div class="w-winds">
+                <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_last)">
+                  <strong>{{ getStationData(station)!.condition.wind_speed_last ?? '—' }}</strong> km/h
+                </span>
+                <span class="w-aktuell">aktuell</span>
+                <span class="w-dot">·</span>
+                <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_hi_last_10_min)">
+                  <strong>{{ getStationData(station)!.condition.wind_speed_hi_last_10_min ?? '—' }}</strong> km/h 10′ max
+                </span>
+                <span class="w-dot">·</span>
+                <span class="w-avg">
+                  <strong>{{ getStationData(station)!.condition.wind_speed_avg_last_10_min ?? '—' }}</strong> km/h 10′ Ø
+                </span>
+              </div>
+
+              <div class="w-dir-wrap">
                 <svg
                   v-if="getStationData(station)!.condition.wind_dir_last != null"
                   viewBox="0 0 24 12"
@@ -224,13 +227,17 @@ onMounted(() => {
                     stroke-linejoin="round"
                   />
                 </svg>
-              </div>
-              <div v-if="getStationData(station)!.condition.temp != null" class="w-temp">
-                <span class="w-label">Temp</span>
-                <span class="w-temp-val">{{ getStationData(station)!.condition.temp }} °C</span>
+                <span class="w-dir-text">
+                  {{
+                    getStationData(station)!.condition.wind_dir_last != null
+                      ? degToDir(windDirDeg(getStationData(station)!.condition, station.id))
+                      : '—'
+                  }}
+                </span>
               </div>
             </div>
           </div>
+
           <p v-else class="w-no-data">Keine aktuellen Daten verfügbar.</p>
         </article>
       </div>
@@ -239,6 +246,13 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.w-root {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
+    'Liberation Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 .w-debug {
   background: #1e293b;
   color: #e2e8f0;
@@ -284,7 +298,11 @@ onMounted(() => {
 }
 .w-header {
   margin-bottom: 1rem;
-  padding: 1rem 0;
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 .w-title {
   font-size: 1.125rem;
@@ -309,11 +327,52 @@ onMounted(() => {
   }
 }
 .w-card {
-  border: 2px solid #e5e7eb;
+  border: 1px solid #e5e7eb;
   border-radius: 0.75rem;
   background: #fff;
   padding: 1.25rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.w-card:hover {
+  border-color: #7dd3fc; /* sky-300 */
+  box-shadow: 0 1px 10px rgba(56, 189, 248, 0.2);
+}
+
+.w-card-inner {
+  width: 100%;
+}
+
+.w-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 1rem;
+}
+
+.w-card-top-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.w-temp-top {
+  font-size: 0.875rem;
+  color: #111827;
+  font-weight: 500;
+}
+
+.w-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 .w-card-head {
   display: flex;
@@ -322,7 +381,7 @@ onMounted(() => {
   gap: 0.75rem;
 }
 .w-station-name {
-  font-weight: 500;
+  font-weight: 600;
   margin: 0;
   color: #111827;
 }
@@ -338,6 +397,9 @@ onMounted(() => {
   tabular-nums: 1;
 }
 .w-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
   font-size: 0.75rem;
   font-weight: 500;
   color: #047857;
@@ -345,6 +407,29 @@ onMounted(() => {
   border: 1px solid #34d399;
   padding: 0.125rem 0.5rem;
   border-radius: 9999px;
+}
+
+.w-live-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: #059669;
+  animation: w-live-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes w-live-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 .w-card-body {
   margin-top: 1rem;
@@ -356,10 +441,20 @@ onMounted(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.25rem 0.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0;
+  color: #4b5563;
 }
 .w-sep {
   color: #d1d5db;
+}
+
+.w-dot {
+  color: #d1d5db;
+}
+
+.w-aktuell {
+  color: #9ca3af; /* gray-400 */
+  font-size: 0.875rem;
 }
 .w-avg {
   color: #4b5563;
@@ -391,6 +486,12 @@ onMounted(() => {
 .w-dir {
   font-weight: 600;
   color: #111827;
+}
+
+.w-dir-text {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.875rem;
 }
 .w-arrow {
   width: 2.5rem;
