@@ -26,7 +26,11 @@ export default defineEventHandler(async (event) => {
 	const result = await readSaveMeasurement(baseUrl)
 	if (!result.ok) {
 		setResponseStatus(event, 502)
-		return { ok: false, error: result.error ?? 'readSaveMeasurement failed' }
+		return {
+			ok: false,
+			error: result.error ?? 'readSaveMeasurement failed',
+			requestUrl: baseUrl,
+		}
 	}
 	return { ok: true }
 })
