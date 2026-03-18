@@ -3,7 +3,8 @@ import * as db from '../../utils/db'
 export default defineEventHandler(async (event) => {
 	const body = await readBody(event)
 
-	if (!body?.json || !db.isConfigured(event)) return
+	const json = body?.json ?? body
+	if (!json || typeof json !== 'object' || !db.isConfigured(event)) return
 
 	const d = new Date()
 	const datestring =
@@ -22,11 +23,11 @@ export default defineEventHandler(async (event) => {
 	try {
 		const existing = await db.findOne(event, filter)
 		if (existing) {
-			await db.updateOne(event, filter, { $set: { json: body.json } })
-			return { id: existing._id, json: body.json }
+			await db.updateOne(event, filter, { $set: { json } })
+			return { id: existing._id, json }
 		}
-		const { insertedId } = await db.insertOne(event, { timeid: datestring, json: body.json })
-		return { id: insertedId, json: body.json }
+		const { insertedId } = await db.insertOne(event, { timeid: datestring, json })
+		return { id: insertedId, json }
 	} catch (err) {
 		console.error(err)
 		setResponseStatus(event, 500)
