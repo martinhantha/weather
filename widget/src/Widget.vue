@@ -11,6 +11,7 @@ const STATIONS: IStationConfig[] = [
     { id: '33570', name: 'Pichlberg', source: 'weatherlink', station_id: '33570' },
     { id: '92575', name: 'Sattele', source: 'weatherlink', station_id: '92575' },
     { id: 'ISARNT29', name: 'Reinswald', source: 'pws', station_id: 'ISARNT29' },
+    { id: 'ISARNT1', name: 'Moosbrugg', source: 'pws', station_id: 'ISARNT1' },
     { id: '82200MS', name: 'Sarnthein', source: 'southtyrol', station_code: '82200MS' },
     { id: '82910MS', name: 'Jenesien', source: 'southtyrol', station_code: '82910MS' },
     { id: '80100SF', name: 'Pens Tramintal', source: 'southtyrol', station_code: '80100SF' },
@@ -22,13 +23,14 @@ const STATIONS: IStationConfig[] = [
     { id: '06040WS', name: 'Sulden Schöntaufspitze', source: 'southtyrol', station_code: '06040WS' },
 ]
 
-const LIVE_STATION_IDS = new Set(['33570', 'ISARNT29'])
+const LIVE_STATION_IDS = new Set(['33570', 'ISARNT29', 'ISARNT1'])
 const SOUTH_TIROL_CODES = STATIONS.filter((s) => s.source === 'southtyrol').map((s) => s.station_code!).join(',')
 
 const measurement = ref<any>(null)
 const windStations = ref<Record<string, { ts: number; condition: Partial<ICondition> }> | null>(null)
 const southTyrol = ref<Record<string, { ts: number } & Partial<ICondition>> | null>(null)
 const pwsData = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
+const pwsDataIsarnt1 = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
 const weatherlinkSattele = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
 const weatherlinkPichlberg = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
 const loading = ref(true)
@@ -54,6 +56,9 @@ function getStationData(station: IStationConfig): { ts: number; condition: Parti
     }
     if (station.source === 'pws' && station.station_id === 'ISARNT29' && pwsData.value) {
         return pwsData.value
+    }
+    if (station.source === 'pws' && station.station_id === 'ISARNT1' && pwsDataIsarnt1.value) {
+        return pwsDataIsarnt1.value
     }
     if (station.source === 'southtyrol' && southTyrol.value?.[station.station_code!]) {
         const d = southTyrol.value[station.station_code!]
@@ -107,11 +112,12 @@ async function fetchAll() {
     error.value = null
     if (props.debug) log(`fetchAll: ${b}`)
     try {
-        const [measRes, windRes, southRes, pwsRes, satteleRes, pichlbergRes] = await Promise.all([
+        const [measRes, windRes, southRes, pwsRes29, pwsResIsarnt1, satteleRes, pichlbergRes] = await Promise.all([
             fetch(`${b}/api/measurement`),
             fetch(`${b}/api/wind-stations`),
             fetch(`${b}/api/southtyrol/sensors?station_codes=${SOUTH_TIROL_CODES}`),
             fetch(`${b}/api/pws/observations?stationId=ISARNT29`),
+            fetch(`${b}/api/pws/observations?stationId=ISARNT1`),
             fetch(`${b}/api/weatherlink/current?stationId=92575`),
             fetch(`${b}/api/weatherlink/current?stationId=33570`),
         ])
@@ -119,7 +125,8 @@ async function fetchAll() {
             measurement: `${measRes.status} ${measRes.statusText}`,
             windStations: `${windRes.status} ${windRes.statusText}`,
             southtyrol: `${southRes.status} ${southRes.statusText}`,
-            pws: `${pwsRes.status} ${pwsRes.statusText}`,
+            pws29: `${pwsRes29.status} ${pwsRes29.statusText}`,
+            pwsIsarnt1: `${pwsResIsarnt1.status} ${pwsResIsarnt1.statusText}`,
             weatherlinkSattele: `${satteleRes.status} ${satteleRes.statusText}`,
             weatherlinkPichlberg: `${pichlbergRes.status} ${pichlbergRes.statusText}`,
         }
@@ -130,7 +137,8 @@ async function fetchAll() {
             const data = await southRes.json()
             southTyrol.value = data
         }
-        if (pwsRes.ok) pwsData.value = await pwsRes.json()
+        if (pwsRes29.ok) pwsData.value = await pwsRes29.json()
+        if (pwsResIsarnt1.ok) pwsDataIsarnt1.value = await pwsResIsarnt1.json()
         if (satteleRes.ok) weatherlinkSattele.value = await satteleRes.json()
         if (pichlbergRes.ok) weatherlinkPichlberg.value = await pichlbergRes.json()
     } catch (e: any) {
@@ -322,8 +330,8 @@ onMounted(() => {
 .w-card {
     border: 1px solid #e5e7eb;
     border-radius: 0.75em;
-    background: #fff;
-    padding: 1em;
+    background: #f3f3f3;
+    padding: 0.75em;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     transition: border-color 150ms ease, box-shadow 150ms ease;
 }
@@ -397,7 +405,7 @@ onMounted(() => {
 }
 
 .w-wind-unit-small {
-    font-size: 0.65em;
+    font-size: 0.6em;
     color: #6b7280; /* neutral gray-500; do not inherit wind-speed color */
 }
 

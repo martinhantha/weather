@@ -3,14 +3,15 @@ import { useMeasurement } from '~/composables/measurment'
 import type { IWeatherData, IMeasurement, IStationConfig, ICondition, INormalizedSouthTyrolStation } from '~/types'
 
 /** Station IDs that have live data (real-time); show green LIVE indicator. */
-const LIVE_STATION_IDS = new Set(['33570', 'ISARNT29'])
+const LIVE_STATION_IDS = new Set(['33570', 'ISARNT29', 'ISARNT1'])
 
 const STATIONS: IStationConfig[] = [
     { id: '33570', name: 'Pichlberg', source: 'weatherlink', station_id: '33570' },
     { id: '92575', name: 'Sattele', source: 'weatherlink', station_id: '92575' },
     { id: 'ISARNT29', name: 'Reinswald', source: 'pws', station_id: 'ISARNT29' },
+    { id: 'ISARNT1', name: 'Moosbrugg', source: 'pws', station_id: 'ISARNT1' },
     { id: '82200MS', name: 'Sarnthein', source: 'southtyrol', station_code: '82200MS' },
-    { id: '82910MS', name: 'Jenesien', source: 'southtyrol', station_code: '82910MS' },
+    // { id: '82910MS', name: 'Jenesien', source: 'southtyrol', station_code: '82910MS' },
     { id: '80100SF', name: 'Pens Tramintal', source: 'southtyrol', station_code: '80100SF' },
     { id: '35100WS', name: 'Jaufen', source: 'southtyrol', station_code: '35100WS' },
     { id: '82500WS', name: 'Rittnerhorn', source: 'southtyrol', station_code: '82500WS' },
@@ -30,6 +31,7 @@ const { data: southTyrolData, refresh: refreshSouthTyrol } = await useFetch<Reco
 )
 const { data: foehnData } = await useFetch<{ contents?: Array<{ imageUrl?: string }> }>('/api/southtyrol/foehn?lang=de')
 const { data: pwsData, refresh: refreshPws } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/pws/observations?stationId=ISARNT29')
+const { data: pwsDataIsarnt1, refresh: refreshPwsIsarnt1 } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/pws/observations?stationId=ISARNT1')
 const { data: weatherlinkSatteleData, refresh: refreshWeatherlinkSattele } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/weatherlink/current?stationId=92575')
 const { data: weatherlinkPichlbergData } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/weatherlink/current?stationId=33570')
 
@@ -86,6 +88,9 @@ function getStationData(station: IStationConfig): { ts: number; condition: Parti
     }
     if (station.source === 'pws' && station.station_id === 'ISARNT29' && pwsData.value && 'ts' in pwsData.value && 'condition' in pwsData.value) {
         return { ts: pwsData.value.ts, condition: pwsData.value.condition }
+    }
+    if (station.source === 'pws' && station.station_id === 'ISARNT1' && pwsDataIsarnt1.value && 'ts' in pwsDataIsarnt1.value && 'condition' in pwsDataIsarnt1.value) {
+        return { ts: pwsDataIsarnt1.value.ts, condition: pwsDataIsarnt1.value.condition }
     }
     if (station.source === 'southtyrol' && southTyrolData.value?.[station.station_code!]) {
         const d = southTyrolData.value[station.station_code!]
@@ -163,6 +168,7 @@ onMounted(() => {
     setInterval(() => {
         refreshSouthTyrol()
         refreshPws()
+        refreshPwsIsarnt1()
         refreshWeatherlinkSattele()
     }, 60 * 1000)
 })
@@ -185,7 +191,7 @@ onMounted(() => {
         </header>
 
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <article v-for="station in STATIONS" :key="station.id" class="cursor-pointer rounded-xl border-2 bg-white p-5 shadow-sm transition hover:border-sky-300 hover:shadow" :class="selectedStationId === station.id ? 'border-sky-500 ring-2 ring-sky-200' : 'border-gray-200'" @click="selectedStationId = station.id">
+            <article v-for="station in STATIONS" :key="station.id" class="cursor-pointer rounded-xl border-2 p-5 shadow-sm transition hover:border-sky-300 hover:shadow bg-gray-200" :class="selectedStationId === station.id ? 'border-sky-500 ring-2 ring-sky-200' : 'border-gray-200'" @click="selectedStationId = station.id">
                 <div v-if="getStationData(station)" class="space-y-3 border-gray-100">
                     <div class="flex items-start justify-between gap-3 border-b pb-4">
                         <div class="min-w-0 flex-1">
