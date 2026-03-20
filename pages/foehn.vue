@@ -297,7 +297,7 @@ const chart = computed(() => {
       <strong class="font-medium text-slate-600">Stand der Berechnung:</strong>
       {{ formatCalculationTime(calculationInstant) }}
       <span class="text-slate-400">({{ series?.timezone ?? 'Europe/Vienna' }})</span>
-      <span class="text-slate-400"> · Aktualisierung alle 5 Min (nur bei sichtbarem Tab)</span>
+      <span class="text-slate-400"> · Aktualisierung alle 5 Min</span>
     </p>
 
     <p v-if="loading">Lade…</p>
@@ -317,14 +317,6 @@ const chart = computed(() => {
           <strong class="text-slate-600">Δp Station (Bozen − Innsbruck):</strong>
           {{ data?.differenceStation ?? '–' }} hPa
         </p>
-        <p>
-          <strong class="text-slate-600">Δp Modell (1. Vorhersage-Stunde, wie Diagramm):</strong>
-          {{ data?.differenceModel ?? '–' }} hPa
-        </p>
-        <p>
-          <strong class="text-slate-600">Einordnung:</strong>
-          {{ data?.interpretation ?? '–' }}
-        </p>
       </section>
 
       <section class="mb-4">
@@ -332,7 +324,7 @@ const chart = computed(() => {
           Zeitreihe ({{ series?.pastHours ?? 24 }} h Analyse ·
           {{ series?.forecastHours ?? 96 }} h Vorhersage)
         </h2>
-        <p class="mb-3 max-w-prose text-sm text-slate-600">
+        <p class="mb-3 max-w-prose text-xs text-slate-600">
           {{ series?.note }}
         </p>
 
