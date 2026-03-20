@@ -315,6 +315,10 @@ function windSpeedColorHex(speed: number | null | undefined): string {
     return '#000000'
 }
 
+/** After PWS failure, skip PWS fetches until then (aligned with server error cache, default 5m). */
+const PWS_ERROR_BACKOFF_MS = 300_000
+let pwsBackoffUntil = 0
+
 async function fetchAll() {
     const b = base()
     if (!b) {
@@ -326,21 +330,32 @@ async function fetchAll() {
     error.value = null
     if (props.debug) log(`fetchAll: ${b}`)
     try {
-        const [measRes, windRes, southRes, pwsRes29, pwsResIsarnt1, satteleRes, pichlbergRes] = await Promise.all([
+        const now = Date.now()
+        const runPws = now >= pwsBackoffUntil
+
+        const [measRes, windRes, southRes, satteleRes, pichlbergRes] = await Promise.all([
             fetch(`${b}/api/measurement`),
             fetch(`${b}/api/wind-stations`),
             fetch(`${b}/api/southtyrol/sensors?station_codes=${SOUTH_TIROL_CODES}`),
-            fetch(`${b}/api/pws/observations?stationId=ISARNT29`),
-            fetch(`${b}/api/pws/observations?stationId=ISARNT1`),
             fetch(`${b}/api/weatherlink/current?stationId=92575`),
             fetch(`${b}/api/weatherlink/current?stationId=33570`),
         ])
+
+        let pwsRes29: Response | null = null
+        let pwsResIsarnt1: Response | null = null
+        if (runPws) {
+            ;[pwsRes29, pwsResIsarnt1] = await Promise.all([
+                fetch(`${b}/api/pws/observations?stationId=ISARNT29`),
+                fetch(`${b}/api/pws/observations?stationId=ISARNT1`),
+            ])
+        }
+
         apiStatus.value = {
             measurement: `${measRes.status} ${measRes.statusText}`,
             windStations: `${windRes.status} ${windRes.statusText}`,
             southtyrol: `${southRes.status} ${southRes.statusText}`,
-            pws29: `${pwsRes29.status} ${pwsRes29.statusText}`,
-            pwsIsarnt1: `${pwsResIsarnt1.status} ${pwsResIsarnt1.statusText}`,
+            pws29: pwsRes29 ? `${pwsRes29.status} ${pwsRes29.statusText}` : 'skipped (error backoff)',
+            pwsIsarnt1: pwsResIsarnt1 ? `${pwsResIsarnt1.status} ${pwsResIsarnt1.statusText}` : 'skipped (error backoff)',
             weatherlinkSattele: `${satteleRes.status} ${satteleRes.statusText}`,
             weatherlinkPichlberg: `${pichlbergRes.status} ${pichlbergRes.statusText}`,
         }
@@ -351,8 +366,15 @@ async function fetchAll() {
             const data = await southRes.json()
             southTyrol.value = data
         }
-        if (pwsRes29.ok) pwsData.value = await pwsRes29.json()
-        if (pwsResIsarnt1.ok) pwsDataIsarnt1.value = await pwsResIsarnt1.json()
+        if (pwsRes29?.ok) pwsData.value = await pwsRes29.json()
+        if (pwsResIsarnt1?.ok) pwsDataIsarnt1.value = await pwsResIsarnt1.json()
+        if (runPws && pwsRes29 && pwsResIsarnt1) {
+            if (!pwsRes29.ok || !pwsResIsarnt1.ok) {
+                pwsBackoffUntil = Date.now() + PWS_ERROR_BACKOFF_MS
+            } else {
+                pwsBackoffUntil = 0
+            }
+        }
         if (satteleRes.ok) weatherlinkSattele.value = await satteleRes.json()
         if (pichlbergRes.ok) weatherlinkPichlberg.value = await pichlbergRes.json()
     } catch (e: any) {

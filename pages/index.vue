@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nextTick } from 'vue'
 import { useMeasurement } from '~/composables/measurment'
 import type { IWeatherData, IMeasurement, IStationConfig, ICondition, INormalizedSouthTyrolStation } from '~/types'
 
@@ -30,8 +31,15 @@ const { data: southTyrolData, refresh: refreshSouthTyrol } = await useFetch<Reco
     `/api/southtyrol/sensors?station_codes=${SOUTH_TIROL_CODES}`
 )
 const { data: foehnData } = await useFetch<{ contents?: Array<{ imageUrl?: string }> }>('/api/southtyrol/foehn?lang=de')
-const { data: pwsData, refresh: refreshPws } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/pws/observations?stationId=ISARNT29')
-const { data: pwsDataIsarnt1, refresh: refreshPwsIsarnt1 } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/pws/observations?stationId=ISARNT1')
+const { data: pwsData, error: pwsError, refresh: refreshPws } = await useFetch<{ ts: number; condition: Partial<ICondition> }>(
+    '/api/pws/observations?stationId=ISARNT29',
+)
+const { data: pwsDataIsarnt1, error: pwsErrorIsarnt1, refresh: refreshPwsIsarnt1 } = await useFetch<{ ts: number; condition: Partial<ICondition> }>(
+    '/api/pws/observations?stationId=ISARNT1',
+)
+/** Skip PWS refresh while in error backoff (matches widget / server ~5m). */
+const pwsBackoffUntil = ref(0)
+const PWS_CLIENT_ERROR_BACKOFF_MS = 300_000
 const { data: weatherlinkSatteleData, refresh: refreshWeatherlinkSattele } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/weatherlink/current?stationId=92575')
 const { data: weatherlinkPichlbergData } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/weatherlink/current?stationId=33570')
 
@@ -166,11 +174,25 @@ onMounted(() => {
         await refreshWindStations()
         await update()
     }, 2000)
-    setInterval(() => {
+    setInterval(async () => {
         refreshSouthTyrol()
-        refreshPws()
-        refreshPwsIsarnt1()
         refreshWeatherlinkSattele()
+        if (Date.now() < pwsBackoffUntil.value) return
+        await refreshPws()
+        await refreshPwsIsarnt1()
+        await nextTick()
+        const d29 = pwsData.value as Record<string, unknown> | null
+        const d1 = pwsDataIsarnt1.value as Record<string, unknown> | null
+        const pwsFailed =
+            pwsError.value ||
+            pwsErrorIsarnt1.value ||
+            (d29 && 'error' in d29) ||
+            (d1 && 'error' in d1)
+        if (pwsFailed) {
+            pwsBackoffUntil.value = Date.now() + PWS_CLIENT_ERROR_BACKOFF_MS
+        } else {
+            pwsBackoffUntil.value = 0
+        }
     }, 60 * 1000)
 })
 

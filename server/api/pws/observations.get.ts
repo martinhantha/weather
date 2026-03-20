@@ -1,6 +1,6 @@
 /**
  * Proxy to Weather.com v2 PWS (Personal Weather Station) current observations.
- * Set WEATHER_COM_API_KEY in .env (key is valid until May, then renew at developer.weather.com).
+ * Set WEATHER_COM_API_KEY in .env (create/renew at developer.weather.com).
  * Query: stationId (default ISARNT29). Returns normalized condition for wind list/gauges.
  */
 import type { ICondition } from '~/types'
@@ -10,6 +10,10 @@ const PWS_URL = 'https://api.weather.com/v2/pws/observations/current'
 // Cache upstream Weather.com "current" responses so multiple users
 // (and fast polling clients) don't trigger an upstream request each time.
 const CACHE_TTL_MS = Number(process.env.PWS_OBSERVATIONS_CURRENT_CACHE_TTL_MS) || 60_000
+/** Cache failed upstream responses (401, 404, 502) so polling clients don't hammer Weather.com or spam logs. */
+const ERROR_CACHE_TTL_MS = Number(process.env.PWS_OBSERVATIONS_ERROR_CACHE_TTL_MS) || 300_000
+/** Minimum time between 401 console.error lines (process-wide), even across stations. */
+const LOG_401_INTERVAL_MS = Number(process.env.PWS_401_LOG_INTERVAL_MS) || 120_000
 
 type NormalizedPws = { ts: number; condition: Partial<ICondition> }
 
@@ -24,8 +28,14 @@ function getStationCacheKey(stationId: string) {
 	return `${CACHE_KEY_PREFIX}${stationId}`
 }
 
-const cacheMap = ((globalThis as any).__pwsObservationsCurrentCache ??= new Map<string, { expiresAt: number; value: NormalizedPws }>())
+type CachedEntry = { expiresAt: number; result: FetchResult }
+
+const cacheMap = ((globalThis as any).__pwsObservationsCurrentCache ??= new Map<string, CachedEntry>()) as Map<
+	string,
+	CachedEntry
+>
 const inflightMap = ((globalThis as any).__pwsObservationsCurrentInflight ??= new Map<string, Promise<FetchResult>>())
+let lastPws401LogAt = 0
 
 interface PwsMetric {
 	temp: number
@@ -75,9 +85,13 @@ async function fetchFromWeatherCom(stationId: string, apiKey: string): Promise<F
 	} catch (e: any) {
 		const status = e?.statusCode ?? e?.status ?? e?.response?.status
 		if (status === 401) {
-			console.error(
-				'PWS fetch failed: 401 Unauthorized — WEATHER_COM_API_KEY missing, invalid, or expired (renew at developer.weather.com)',
-			)
+			const t = Date.now()
+			if (t - lastPws401LogAt >= LOG_401_INTERVAL_MS) {
+				lastPws401LogAt = t
+				console.error(
+					'PWS fetch failed: 401 Unauthorized — WEATHER_COM_API_KEY missing, invalid, or expired (renew at developer.weather.com)',
+				)
+			}
 			return {
 				status: 502,
 				data: {
@@ -105,11 +119,11 @@ export default defineEventHandler(async (event) => {
 	const cacheKey = getStationCacheKey(stationId)
 	const now = Date.now()
 
-	// 1) Serve cached data to all users.
+	// 1) Serve cached data to all users (success or cached upstream errors).
 	const cached = cacheMap.get(cacheKey)
 	if (cached && cached.expiresAt > now) {
-		setResponseStatus(event, 200)
-		return cached.value
+		setResponseStatus(event, cached.result.status)
+		return cached.result.data
 	}
 
 	// 2) If an upstream request is already in flight for this station,
@@ -126,9 +140,8 @@ export default defineEventHandler(async (event) => {
 	inflightMap.set(cacheKey, promise)
 	try {
 		const res = await promise
-		if (res.status === 200) {
-			cacheMap.set(cacheKey, { expiresAt: now + CACHE_TTL_MS, value: res.data })
-		}
+		const ttl = res.status === 200 ? CACHE_TTL_MS : ERROR_CACHE_TTL_MS
+		cacheMap.set(cacheKey, { expiresAt: now + ttl, result: res })
 		setResponseStatus(event, res.status)
 		return res.data
 	} finally {
