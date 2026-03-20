@@ -30,6 +30,7 @@
     "vue-router": "^4.2.5"
   },
   "dependencies": {
+    "cheerio": "^1.2.0",
     "less": "^4.2.0",
     "nuxt-server-utils": "^0.0.7"
   },
