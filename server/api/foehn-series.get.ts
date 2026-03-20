@@ -27,7 +27,7 @@ function openMeteoHourlyUrl(
 export default defineEventHandler(async () => {
     const pastHours = 24
     /** 4 Tage Vorhersage (96 h) */
-    const forecastHours = 96
+    const forecastHours = 120
 
     const urlBozenPast = openMeteoHourlyUrl(BOZEN_LAT, BOZEN_LON, pastHours, 0)
     const urlInnPast = openMeteoHourlyUrl(INNSBRUCK_LAT, INNSBRUCK_LON, pastHours, 0)

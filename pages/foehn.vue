@@ -135,6 +135,71 @@ const chart = computed(() => {
     const zeroInRange = 0 >= minY && 0 <= maxY
     const yZero = zeroInRange ? yAt(0) : null
 
+    type Pt = { x: number; y: number; v: number }
+
+    /** Punkte entlang einer Serie inkl. Schnittpunkte mit Δp = 0 zwischen benachbarten Stützstellen */
+    const ptsWithZeroCrossings = (
+        key: 'observation' | 'forecast',
+    ): Pt[] => {
+        const indices: number[] = []
+        for (let i = 0; i < rows.length; i++) {
+            if (rows[i][key] != null) indices.push(i)
+        }
+        const out: Pt[] = []
+        for (let k = 0; k < indices.length; k++) {
+            const i = indices[k]
+            const v = rows[i][key]!
+            if (k > 0 && yZero != null) {
+                const i0 = indices[k - 1]
+                const v0 = rows[i0][key]!
+                if (v0 * v < 0) {
+                    const t = v0 / (v0 - v)
+                    const xZ = xAt(i0) + t * (xAt(i) - xAt(i0))
+                    out.push({ x: xZ, y: yZero, v: 0 })
+                }
+            }
+            out.push({ x: xAt(i), y: yAt(v), v })
+        }
+        return out
+    }
+
+    /** Fläche nur zwischen y = yZero und der Kurve (positive bzw. negative Δp-Segmente) */
+    const pathsBetweenCurveAndZero = (pts: Pt[], positive: boolean): string => {
+        if (yZero == null) return ''
+        const parts: string[] = []
+        let run: Pt[] = []
+        /** Bei v=0 (Null-Schnitt) muss die Basis bei crossing.x schließen, nicht bei last curve x */
+        const flush = (closingX?: number) => {
+            if (!run.length) return
+            const xBase = closingX ?? run[run.length - 1].x
+            let d = `M ${run[0].x} ${yZero} L ${run[0].x} ${run[0].y}`
+            for (let k = 1; k < run.length; k++) d += ` L ${run[k].x} ${run[k].y}`
+            d += ` L ${xBase} ${yZero} Z`
+            parts.push(d)
+            run = []
+        }
+        for (const p of pts) {
+            if (positive ? p.v > 0 : p.v < 0) {
+                run.push(p)
+            } else if (p.v === 0) {
+                flush(p.x)
+            } else {
+                flush()
+            }
+        }
+        flush()
+        return parts.join(' ')
+    }
+
+    const fillObsAbovePath =
+        yZero != null
+            ? pathsBetweenCurveAndZero(ptsWithZeroCrossings('observation'), true)
+            : ''
+    const fillFcBelowPath =
+        yZero != null
+            ? pathsBetweenCurveAndZero(ptsWithZeroCrossings('forecast'), false)
+            : ''
+
     const yTicks = 5
     const tickVals: number[] = []
     for (let t = 0; t <= yTicks; t++) {
@@ -161,6 +226,8 @@ const chart = computed(() => {
         pastFcPath: toPath(pastFcPts),
         fcPath: toPath(fcPts),
         yZero,
+        fillObsAbovePath,
+        fillFcBelowPath,
         zeroInRange,
         tickVals,
         yAt,
@@ -246,6 +313,20 @@ const chart = computed(() => {
               fill="#f8fafc"
               stroke="#e2e8f0"
               stroke-width="1"
+            />
+
+            <!-- Fläche nur zwischen Δp = 0 und Kurve: Analyse rot (Δp &gt; 0), Vorhersage blau (Δp &lt; 0) -->
+            <path
+              v-if="chart.fillObsAbovePath"
+              :d="chart.fillObsAbovePath"
+              fill="rgb(244 63 94 / 0.35)"
+              pointer-events="none"
+            />
+            <path
+              v-if="chart.fillFcBelowPath"
+              :d="chart.fillFcBelowPath"
+              fill="rgb(14 165 233 / 0.35)"
+              pointer-events="none"
             />
 
             <!-- Y grid -->
