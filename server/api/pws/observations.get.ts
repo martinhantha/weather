@@ -73,6 +73,20 @@ async function fetchFromWeatherCom(stationId: string, apiKey: string): Promise<F
 		}
 		return { status: 200, data: normalize(obs) }
 	} catch (e: any) {
+		const status = e?.statusCode ?? e?.status ?? e?.response?.status
+		if (status === 401) {
+			console.error(
+				'PWS fetch failed: 401 Unauthorized — WEATHER_COM_API_KEY missing, invalid, or expired (renew at developer.weather.com)',
+			)
+			return {
+				status: 502,
+				data: {
+					error: 'PWS API unavailable',
+					stationId,
+					detail: 'Unauthorized: set a valid WEATHER_COM_API_KEY',
+				},
+			}
+		}
 		console.error('PWS fetch failed:', e?.message || e)
 		return { status: 502, data: { error: 'PWS API unavailable', stationId, detail: e?.message } }
 	}

@@ -62,6 +62,7 @@ function windSpeedColor(speed: number | null | undefined): string {
 /** Hex color for wind speed arrows, same bands as windSpeedColor. */
 function windSpeedColorHex(speed: number | null | undefined): string {
     if (speed == null) return '#6b7280' // gray-500
+    if (speed <= 5) return '#ffffff' // white
     if (speed <= 14) return '#16a34a' // green-600
     if (speed <= 25) return '#eab308' // yellow-500
     if (speed <= 30) return '#ea580c' // orange-600
@@ -191,67 +192,65 @@ onMounted(() => {
         </header>
 
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <article v-for="station in STATIONS" :key="station.id" class="cursor-pointer rounded-xl border-2 p-5 shadow-sm transition hover:border-sky-300 hover:shadow bg-gray-200" :class="selectedStationId === station.id ? 'border-sky-500 ring-2 ring-sky-200' : 'border-gray-200'" @click="selectedStationId = station.id">
-                <div v-if="getStationData(station)" class="space-y-3 border-gray-100">
-                    <div class="flex items-start justify-between gap-3 border-b pb-4">
-                        <div class="min-w-0 flex-1">
-                            <p class="text-base font-medium text-gray-900">
-                                {{ station.name }}
-                            </p>
-                        </div>
-                        <div class="flex items-center justify-between text-base text-gray-600">
-                            <div v-if="getStationData(station)!.condition.temp != null" class="flex items-baseline gap-1.5">
-                                <span class="text-gray-800">
-                                    {{ getStationData(station)!.condition.temp }} °C
+            <template v-for="station in STATIONS" :key="station.id">
+                <article v-if="getStationData(station)" class="cursor-pointer rounded-xl border-2 p-5 shadow-sm transition hover:border-sky-300 hover:shadow bg-gray-200" :class="selectedStationId === station.id ? 'border-sky-500 ring-2 ring-sky-200' : 'border-gray-200'" @click="selectedStationId = station.id">
+                    <div class="space-y-3 border-gray-100">
+                        <div class="flex items-start justify-between gap-3 border-b pb-4">
+                            <div class="min-w-0 flex-1">
+                                <p class="text-base font-medium text-gray-900">
+                                    {{ station.name }}
+                                </p>
+                            </div>
+                            <div class="flex items-center justify-between text-base text-gray-600">
+                                <div v-if="getStationData(station)!.condition.temp != null" class="flex items-baseline gap-1.5">
+                                    <span class="text-gray-800">
+                                        {{ getStationData(station)!.condition.temp }} °C
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-2">
+                                <span v-if="getStationData(station)?.ts" class="text-xs tabular-nums text-gray-500">
+                                    {{ new Date(getStationData(station)!.ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) }}
+                                </span>
+                                <span v-if="LIVE_STATION_IDS.has(station.id)" class="inline-flex items-center gap-1 rounded-full border border-emerald-400 bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                                    LIVE
                                 </span>
                             </div>
                         </div>
-                        <div class="flex shrink-0 items-center gap-2">
-                            <span v-if="getStationData(station)?.ts" class="text-xs tabular-nums text-gray-500">
-                                {{ new Date(getStationData(station)!.ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) }}
-                            </span>
-                            <span v-if="LIVE_STATION_IDS.has(station.id)" class="inline-flex items-center gap-1 rounded-full border border-emerald-400 bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
-                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                                LIVE
-                            </span>
-                        </div>
-                    </div>
 
-                    <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-base text-gray-600 justify-between">
-                        <div class="flex items-center gap-2">
-                            <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_last)">
-                                <span class="font-semibold">{{ getStationData(station)!.condition.wind_speed_last ?? '—' }}</span><span class="text-xs text-gray-600"> km/h</span>
-                            </span>
-                            <span class="hidden text-gray-300 sm:inline">·</span>
-                            <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_hi_last_10_min)">
-                                <span class="font-semibold">{{ getStationData(station)!.condition.wind_speed_hi_last_10_min ?? '—' }}</span><span class="text-xs text-gray-600"> km/h 10′ max</span>
-                            </span>
-                            <span class="hidden text-gray-300 sm:inline">·</span>
-                            <span class="text-gray-600">
-                                <span>{{ getStationData(station)!.condition.wind_speed_avg_last_10_min ?? '—' }}</span><span class="text-xs text-gray-600"> km/h 10′ Ø</span>
-                            </span>
-                        </div>
-                        <div class="flex items-center gap-2 align-end">
-                            <svg v-if="getStationData(station) && getStationData(station)!.condition.wind_dir_last != null" viewBox="0 0 24 12" xmlns="http://www.w3.org/2000/svg" class="h-9 w-9" :style="{ transform: `rotate(${(windDirDeg(getStationData(station)!.condition, station.id) + 180) % 360}deg)` }">
-                                <path d="M12 0 L9 12 L12 11 L15 12 Z" :fill="windSpeedColorHex(getStationData(station)!.condition.wind_speed_last ?? null)" :stroke="windSpeedColorHex(getStationData(station)!.condition.wind_speed_hi_last_10_min ?? null)" stroke-width="0.8" stroke-linejoin="round" />
-                            </svg>
-                            <div class="flex items-baseline gap-1.5">
-                                <span class="font-semibold text-gray-900">
-                                    {{
-                                        getStationData(station)!.condition.wind_dir_last != null
-                                            ? degToDir(windDirDeg(getStationData(station)!.condition, station.id))
-                                            : '—'
-                                    }}
+                        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-base text-gray-600 justify-between">
+                            <div class="flex items-center gap-2">
+                                <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_last)">
+                                    <span class="font-semibold">{{ getStationData(station)!.condition.wind_speed_last ?? '—' }}</span><span class="text-xs text-gray-600"> km/h</span>
                                 </span>
+                                <span class="hidden text-gray-300 sm:inline">·</span>
+                                <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_hi_last_10_min)">
+                                    <span class="font-semibold">{{ getStationData(station)!.condition.wind_speed_hi_last_10_min ?? '—' }}</span><span class="text-xs text-gray-600"> km/h 10′ max</span>
+                                </span>
+                                <span class="hidden text-gray-300 sm:inline">·</span>
+                                <span class="text-gray-600">
+                                    <span>{{ getStationData(station)!.condition.wind_speed_avg_last_10_min ?? '—' }}</span><span class="text-xs text-gray-600"> km/h 10′ Ø</span>
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-2 align-end">
+                                <svg v-if="getStationData(station) && getStationData(station)!.condition.wind_dir_last != null" viewBox="0 0 24 12" xmlns="http://www.w3.org/2000/svg" class="h-9 w-9" :style="{ transform: `rotate(${(windDirDeg(getStationData(station)!.condition, station.id) + 180) % 360}deg)` }">
+                                    <path d="M12 0 L9 12 L12 11 L15 12 Z" :fill="windSpeedColorHex(getStationData(station)!.condition.wind_speed_hi_last_10_min ?? null)" :stroke="windSpeedColorHex(getStationData(station)!.condition.wind_speed_last ?? null)" stroke-width="0.8" stroke-linejoin="round" />
+                                </svg>
+                                <div class="flex items-baseline gap-1.5">
+                                    <span class="font-semibold text-gray-900">
+                                        {{
+                                            getStationData(station)!.condition.wind_dir_last != null
+                                                ? degToDir(windDirDeg(getStationData(station)!.condition, station.id))
+                                                : '—'
+                                        }}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <p v-else class="mt-4 border-t border-gray-100 pt-4 text-sm text-gray-500">
-                    Keine aktuellen Daten verfügbar.
-                </p>
-            </article>
+                </article>
+            </template>
         </div>
     </section>
 

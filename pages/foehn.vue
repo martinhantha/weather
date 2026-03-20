@@ -296,8 +296,6 @@ const chart = computed(() => {
     >
       <strong class="font-medium text-slate-600">Stand der Berechnung:</strong>
       {{ formatCalculationTime(calculationInstant) }}
-      <span class="text-slate-400">({{ series?.timezone ?? 'Europe/Vienna' }})</span>
-      <span class="text-slate-400"> · Aktualisierung alle 5 Min</span>
     </p>
 
     <p v-if="loading">Lade…</p>
@@ -305,28 +303,28 @@ const chart = computed(() => {
 
     <template v-else>
       <section class="mb-8 space-y-2 text-slate-800">
-        <p>
+        <!-- <p>
           <strong class="text-slate-600">Bozen:</strong>
           {{ data?.bolzanoPressure ?? '–' }} hPa
         </p>
         <p>
           <strong class="text-slate-600">Innsbruck:</strong>
           {{ data?.innsbruckPressure ?? '–' }} hPa
-        </p>
+        </p> -->
         <p>
-          <strong class="text-slate-600">Δp Station (Bozen − Innsbruck):</strong>
-          {{ data?.differenceStation ?? '–' }} hPa
+          Δp Station (Bozen − Innsbruck):
+          <strong>{{ data?.differenceStation ?? '–' }} hPa</strong>
         </p>
       </section>
 
       <section class="mb-4">
-        <h2 class="mb-2 text-lg font-medium text-slate-800">
+        <!-- <h2 class="mb-2 text-lg font-medium text-slate-800">
           Zeitreihe ({{ series?.pastHours ?? 24 }} h Analyse ·
           {{ series?.forecastHours ?? 96 }} h Vorhersage)
-        </h2>
-        <p class="mb-3 max-w-prose text-xs text-slate-600">
+        </h2> -->
+        <!-- <p class="mb-3 max-w-prose text-xs text-slate-600">
           {{ series?.note }}
-        </p>
+        </p> -->
 
         <div
           v-if="chart"
@@ -489,14 +487,14 @@ const chart = computed(() => {
           </div>
         </div>
       </section>
-
+<!-- 
       <button
         type="button"
         class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 shadow-sm hover:bg-slate-50"
         @click="reload()"
       >
         Neu laden
-      </button>
+      </button> -->
     </template>
   </div>
 </template>
