@@ -80,6 +80,15 @@ function formatAxisTime(iso: string) {
     })
 }
 
+function formatDayLabel(iso: string) {
+    return new Date(iso).toLocaleDateString('de-AT', {
+        timeZone: 'Europe/Vienna',
+        weekday: 'short',
+        day: 'numeric',
+        month: 'numeric',
+    })
+}
+
 const chart = computed(() => {
     const rows = series.value?.rows ?? []
     if (!rows.length) return null
@@ -191,9 +200,21 @@ const chart = computed(() => {
         return parts.join(' ')
     }
 
-    const fillObsAbovePath =
+    /** Rot für Δp &gt; 0: Beobachtung (Analyse) und Vorhersage – nur Obs würde positives Föhn im Prognoseteil auslassen */
+    const fillPositiveRedPath =
         yZero != null
-            ? pathsBetweenCurveAndZero(ptsWithZeroCrossings('observation'), true)
+            ? [
+                  pathsBetweenCurveAndZero(
+                      ptsWithZeroCrossings('observation'),
+                      true,
+                  ),
+                  pathsBetweenCurveAndZero(
+                      ptsWithZeroCrossings('forecast'),
+                      true,
+                  ),
+              ]
+                  .filter((s) => s.length > 0)
+                  .join(' ')
             : ''
     const fillFcBelowPath =
         yZero != null
@@ -212,21 +233,41 @@ const chart = computed(() => {
 
     /** Mitternacht in lokaler Zeit (Open-Meteo: …T00:00) */
     const midnightX: number[] = []
+    const midnightIndices: number[] = []
     rows.forEach((r, i) => {
-        if (/T00:00(:00)?$/.test(r.time)) midnightX.push(xAt(i))
+        if (/T00:00(:00)?$/.test(r.time)) {
+            midnightX.push(xAt(i))
+            midnightIndices.push(i)
+        }
     })
+
+    /** Label-x = Mitte zwischen zwei aufeinanderfolgenden Mitternächten (letztes Segment: bis Serienende) */
+    const xEnd = pl + innerW
+    const midnightLabels: { x: number; time: string }[] = midnightIndices.map((idx, k) => {
+        const xStart = xAt(idx)
+        const xNext = k + 1 < midnightIndices.length ? xAt(midnightIndices[k + 1]) : xEnd
+        return { x: (xStart + xNext) / 2, time: rows[idx].time }
+    })
+
+    /** Ersten (unvollständigen) Tag: Serienanfang bis erste Mitternacht */
+    if (midnightIndices.length > 0 && midnightIndices[0] > 0) {
+        const xFirst = pl
+        const xMid = (xFirst + xAt(midnightIndices[0])) / 2
+        midnightLabels.unshift({ x: xMid, time: rows[0].time })
+    }
 
     return {
         w,
         h,
         midnightX,
+        midnightLabels,
         minY,
         maxY,
         obsPath: toPath(obsPts),
         pastFcPath: toPath(pastFcPts),
         fcPath: toPath(fcPts),
         yZero,
-        fillObsAbovePath,
+        fillPositiveRedPath,
         fillFcBelowPath,
         zeroInRange,
         tickVals,
@@ -315,10 +356,10 @@ const chart = computed(() => {
               stroke-width="1"
             />
 
-            <!-- Fläche nur zwischen Δp = 0 und Kurve: Analyse rot (Δp &gt; 0), Vorhersage blau (Δp &lt; 0) -->
+            <!-- Fläche zwischen Δp = 0 und Kurve: rot wenn Δp &gt; 0 (Beobachtung + Vorhersage), blau wenn Δp &lt; 0 (nur Vorhersage) -->
             <path
-              v-if="chart.fillObsAbovePath"
-              :d="chart.fillObsAbovePath"
+              v-if="chart.fillPositiveRedPath"
+              :d="chart.fillPositiveRedPath"
               fill="rgb(244 63 94 / 0.35)"
               pointer-events="none"
             />
@@ -388,7 +429,7 @@ const chart = computed(() => {
               </text>
             </g>
 
-            <!-- X axis labels -->
+            <!-- X axis labels: Wochentag + Datum an jeder Mitternacht -->
             <g
               class="fill-slate-600"
               font-family="system-ui, sans-serif"
@@ -396,12 +437,12 @@ const chart = computed(() => {
               text-anchor="middle"
             >
               <text
-                v-for="xi in chart.xTickIdx"
-                :key="'xl' + xi"
-                :x="chart.pl + (chart.rows.length <= 1 ? chart.innerW / 2 : (xi / (chart.rows.length - 1)) * chart.innerW)"
+                v-for="ml in chart.midnightLabels"
+                :key="'mid-lbl-' + ml.time"
+                :x="ml.x"
                 :y="chart.h - 18"
               >
-                {{ formatAxisTime(chart.rows[xi].time) }}
+                {{ formatDayLabel(ml.time) }}
               </text>
             </g>
 
