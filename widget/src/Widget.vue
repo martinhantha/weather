@@ -331,7 +331,7 @@ onMounted(() => {
             <section class="w-section w-foehn">
                 <div class="w-foehn-delta-row">
                     <p class="w-foehn-delta">
-                        Δp Station (Bozen − Innsbruck):
+                        Δp Bozen − Innsbruck:
                         <strong>{{ foehnDiff?.differenceStation ?? '–' }} hPa</strong>
                     </p>
                     <p class="w-foehn-calc-time">
@@ -467,7 +467,7 @@ onMounted(() => {
     justify-content: space-between;
     align-items: flex-start;
     gap: 0.75em;
-    padding-bottom: 0.5em;
+    padding-bottom: 0;
     border-bottom: 1px solid #f3f4f6;
     margin-bottom: 0.5em;
 }
