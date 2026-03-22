@@ -30,7 +30,6 @@ export default defineNitroPlugin(async () => {
                 if (inFlight) return
                 inFlight = true
                 try {
-                    console.log('[scheduler] called readSaveMeasurement')
                     await readSaveMeasurement()
                 } finally {
                     inFlight = false
