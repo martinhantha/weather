@@ -143,6 +143,7 @@ const chart = computed(() => {
 
     const zeroInRange = 0 >= minY && 0 <= maxY
     const yZero = zeroInRange ? yAt(0) : null
+    const yMinusThree = -3 >= minY && -3 <= maxY ? yAt(-3) : null
 
     type Pt = { x: number; y: number; v: number }
 
@@ -267,6 +268,7 @@ const chart = computed(() => {
         pastFcPath: toPath(pastFcPts),
         fcPath: toPath(fcPts),
         yZero,
+        yMinusThree,
         fillPositiveRedPath,
         fillFcBelowPath,
         zeroInRange,
@@ -346,17 +348,17 @@ const chart = computed(() => {
               stroke-width="1"
             />
 
-            <!-- Fläche zwischen Δp = 0 und Kurve: rot wenn Δp &gt; 0 (Beobachtung + Vorhersage), blau wenn Δp &lt; 0 (nur Vorhersage) -->
+            <!-- Fläche zwischen Δp = 0 und Kurve: teal wenn Δp &gt; 0, warm-rot wenn Δp &lt; 0 -->
             <path
               v-if="chart.fillPositiveRedPath"
               :d="chart.fillPositiveRedPath"
-              fill="rgb(244 63 94 / 0.35)"
+              fill="rgb(230 105 88 / 0.35)"
               pointer-events="none"
             />
             <path
               v-if="chart.fillFcBelowPath"
               :d="chart.fillFcBelowPath"
-              fill="rgb(14 165 233 / 0.35)"
+              fill="rgb(78 134 149 / 0.35)"
               pointer-events="none"
             />
 
@@ -399,6 +401,18 @@ const chart = computed(() => {
               :y2="chart.yZero"
               stroke="#059669"
               stroke-width="2"
+            />
+
+            <!-- −3 hPa reference line -->
+            <line
+              v-if="chart.yMinusThree != null"
+              :x1="chart.pl"
+              :x2="chart.pl + chart.innerW"
+              :y1="chart.yMinusThree"
+              :y2="chart.yMinusThree"
+              stroke="#e66958"
+              stroke-width="1.5"
+              stroke-dasharray="6 4"
             />
 
             <!-- Y axis labels -->
@@ -448,23 +462,23 @@ const chart = computed(() => {
             </text>
 
 
-            <!-- Future forecast (blue) -->
+            <!-- Future forecast -->
             <path
               v-if="chart.fcPath"
               :d="chart.fcPath"
               fill="none"
-              stroke="#0284c7"
+              stroke="#e66958"
               stroke-width="2.5"
               stroke-linecap="round"
               stroke-linejoin="round"
             />
 
-            <!-- Observation (rose) -->
+            <!-- Observation -->
             <path
               v-if="chart.obsPath"
               :d="chart.obsPath"
               fill="none"
-              stroke="#e11d48"
+              stroke="#4e8695"
               stroke-width="2.5"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -473,16 +487,20 @@ const chart = computed(() => {
 
           <div class="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-600">
             <span class="inline-flex items-center gap-2">
-              <span class="inline-block h-0.5 w-6 bg-rose-600" />
+              <span class="inline-block h-0.5 w-6" style="background:#4e8695" />
               Beobachtung
             </span>
             <span class="inline-flex items-center gap-2">
-              <span class="inline-block h-0.5 w-6 bg-sky-600" />
+              <span class="inline-block h-0.5 w-6" style="background:#e66958" />
               Vorhersage Zukunft
             </span>
             <span class="inline-flex items-center gap-2">
               <span class="inline-block h-3 w-3 rounded-sm bg-emerald-600" />
               Δp = 0
+            </span>
+            <span class="inline-flex items-center gap-2">
+              <span class="inline-block h-0.5 w-6" style="background:#e66958;border-top:1.5px dashed #e66958" />
+              Δp = −3 hPa
             </span>
           </div>
         </div>
