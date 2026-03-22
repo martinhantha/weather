@@ -1,9 +1,15 @@
 /**
- * Fetch Pichlberg data from pichlbergSourceUrl and POST to /api/measurement.
- * Only used by scheduler and cron — never call from browser or other routes.
- * @param baseUrl Optional origin (e.g. from getRequestURL(event).origin) for POST when in request context
+ * Fetch Pichlberg data and persist via POST /api/measurement (same flow as commit 11e07efe).
  */
-export async function readSaveMeasurement(baseUrl?: string): Promise<{ ok: boolean; error?: string }> {
+function internalApiBase(): string {
+	const config = useRuntimeConfig()
+	const apiUrl = (config.public?.apiUrl as string | undefined)?.trim()
+	if (apiUrl) return apiUrl.replace(/\/$/, '')
+	const port = process.env.PORT || process.env.NITRO_PORT || 3000
+	return `http://127.0.0.1:${port}`
+}
+
+export async function readSaveMeasurement(): Promise<{ ok: boolean; error?: string }> {
 	const sourceUrl = 'http://89.190.166.17:8081/v1/current_conditions'
 
 	const raw = await $fetch(sourceUrl).catch((error: unknown) => {
@@ -25,16 +31,16 @@ export async function readSaveMeasurement(baseUrl?: string): Promise<{ ok: boole
 		return { ok: false, error: 'No JSON object from source' }
 	}
 
-	const measurementUrl = baseUrl ? `${baseUrl.replace(/\/$/, '')}/api/measurement` : '/api/measurement'
-	const result = await $fetch(measurementUrl, {
-		method: 'post',
-		body: { json: response, createdAt: new Date().toISOString() },
-	}).catch((error: unknown) => {
-		console.error('[readSaveMeasurement] POST failed:', (error as { data?: unknown })?.data ?? error)
-		return null
-	})
-    console.log('result', result)
-
-	if (!result) return { ok: false, error: 'Failed to POST measurement' }
-	return { ok: true }
+	const base = internalApiBase()
+	try {
+		await $fetch(`${base}/api/measurement`, {
+			method: 'POST',
+			body: { json: response },
+		})
+		return { ok: true }
+	} catch (e: unknown) {
+		const err = e as { data?: unknown; message?: string }
+		console.error('[readSaveMeasurement] POST /api/measurement failed:', err?.data ?? err?.message ?? err)
+		return { ok: false, error: 'POST failed' }
+	}
 }

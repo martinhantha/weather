@@ -23,10 +23,10 @@ export default defineEventHandler(async (event) => {
 	try {
 		const existing = await db.findOne(event, filter)
 		if (existing) {
-			await db.updateOne(event, filter, { $set: { json } })
+			await db.updateOne(event, filter, { $set: {updatedAt: new Date().toISOString(), json } })
 			return { id: existing._id, json }
 		}
-		const { insertedId } = await db.insertOne(event, { timeid: datestring, json })
+		const { insertedId } = await db.insertOne(event, { createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), timeid: datestring, json })
 		return { id: insertedId, json }
 	} catch (err) {
 		console.error(err)
