@@ -638,7 +638,7 @@ onMounted(() => {
                         </span>
                         <span class="w-foehn-legend-item">
                             <span class="w-foehn-legend-line w-foehn-legend-fc" />
-                            Vorhersage Zukunft
+                            Vorhersage
                         </span>
                         <span class="w-foehn-legend-item">
                             <span class="w-foehn-legend-zero" />
