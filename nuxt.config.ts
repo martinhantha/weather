@@ -39,6 +39,11 @@ export default defineNuxtConfig({
 		experimental: {
 			tasks: true,
 		},
+		// Bundle weathercloud-js into the server output so production does not depend on
+		// node_modules next to .output (dynamic import would otherwise resolve to missing paths).
+		externals: {
+			inline: ['weathercloud-js'],
+		},
 	},
 	modules: ['nuxt-scheduler', '@nuxtjs/tailwindcss'],
 	css: ['~/assets/css/tailwind.css'],
