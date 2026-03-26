@@ -4,7 +4,7 @@
  * Query: deviceId (default: 9123924154).
  * Returns normalized object compatible with frontend (same shape as WeatherLink condition).
  */
-import { getWeather } from 'weathercloud-js'
+import { getWeather } from 'weathercloud-js/dist/index.js'
 import type { ICondition } from '~/types'
 
 type WeathercloudCurrentOut = { ts: number; condition: Partial<ICondition> }
