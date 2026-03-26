@@ -39,9 +39,11 @@ function mount(selectorOrElement: string | HTMLElement, options: WeatherWidgetOp
 
   function isWidgetStyleEl(node: Node): node is HTMLStyleElement {
     if (!(node instanceof HTMLStyleElement)) return false
-    // Vue scoped styles always contain the generated `data-v-...` attribute selector.
     const text = node.textContent ?? ''
-    return text.includes('.w-root') && text.includes('data-v-')
+    // We key off the widget's unique root class.
+    // Historically Widget.vue used `<style scoped>` (so style tags included `data-v-*`),
+    // but shared components mean we must keep widget styles effectively global.
+    return text.includes('.w-root')
   }
 
   function moveWidgetStyleElsFromHead() {

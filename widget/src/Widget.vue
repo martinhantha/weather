@@ -2,30 +2,15 @@
 import { ref, computed, onMounted } from 'vue'
 import type { ICondition, IStationConfig } from '../../types'
 import FoehnPressureChart from './FoehnPressureChart.vue'
+import WindStationGrid from '../../shared/components/WindStationGrid'
+import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes } from '../../shared/stations'
 
 const props = withDefaults(
     defineProps<{ apiUrl: string; debug?: boolean }>(),
     { debug: false }
 )
 
-const STATIONS: IStationConfig[] = [
-    { id: '33570', name: 'Pichlberg', source: 'weatherlink', station_id: '33570' },
-    { id: '92575', name: 'Sattele', source: 'weatherlink', station_id: '92575' },
-    { id: 'ISARNT29', name: 'Reinswald', source: 'pws', station_id: 'ISARNT29' },
-    { id: 'ISARNT1', name: 'Moosbrugg', source: 'pws', station_id: 'ISARNT1' },
-    { id: '82200MS', name: 'Sarnthein', source: 'southtyrol', station_code: '82200MS' },
-    { id: '82910MS', name: 'Jenesien', source: 'southtyrol', station_code: '82910MS' },
-    { id: '80100SF', name: 'Pens Tramintal', source: 'southtyrol', station_code: '80100SF' },
-    { id: '35100WS', name: 'Jaufen', source: 'southtyrol', station_code: '35100WS' },
-    { id: '82500WS', name: 'Rittnerhorn', source: 'southtyrol', station_code: '82500WS' },
-    { id: '69900MS', name: 'Plose', source: 'southtyrol', station_code: '69900MS' },
-    { id: '66000WS', name: 'Dannelspitz', source: 'southtyrol', station_code: '66000WS' },
-    { id: '37100MS', name: 'Sterzing', source: 'southtyrol', station_code: '37100MS' },
-    { id: '06040WS', name: 'Sulden Schöntaufspitze', source: 'southtyrol', station_code: '06040WS' },
-]
-
-const LIVE_STATION_IDS = new Set(['33570', 'ISARNT29', 'ISARNT1'])
-const SOUTH_TIROL_CODES = STATIONS.filter((s) => s.source === 'southtyrol').map((s) => s.station_code!).join(',')
+const SOUTH_TIROL_CODES = getSouthTyrolCodes()
 
 const measurement = ref<any>(null)
 const windStations = ref<Record<string, { ts: number; condition: Partial<ICondition> }> | null>(null)
@@ -34,6 +19,8 @@ const pwsData = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
 const pwsDataIsarnt1 = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
 const weatherlinkSattele = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
 const weatherlinkPichlberg = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
+const weathercloudDeviceId = STATIONS.find((s: IStationConfig) => s.source === 'weathercloud')?.station_id ?? '9123924154'
+const weathercloudData = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
 type SeriesRow = {
     time: string
     observation: number | null
@@ -80,32 +67,14 @@ function getStationData(station: IStationConfig): { ts: number; condition: Parti
         const d = southTyrol.value[station.station_code!]
         return { ts: d.ts, condition: d }
     }
+    if (station.source === 'weathercloud' && station.station_id === weathercloudDeviceId && weathercloudData.value) {
+        return weathercloudData.value
+    }
     if (station.source === 'weatherlink' && station.station_id === '33570' && measurement.value?.json?.data) {
         const d = measurement.value.json.data
         if (d?.conditions?.[0]) return { ts: d.ts, condition: d.conditions[0] }
     }
     return null
-}
-
-function windDirDeg(cond: Partial<ICondition> | null, stationId: string): number {
-    const raw = cond?.wind_dir_last ?? 0
-    if (stationId === '33570') return (raw + 180) % 360
-    return raw
-}
-
-function degToDir(deg: number): string {
-    const n = Math.round(deg / 22.5 + 0.5)
-    const dirs = ['N', 'NNO', 'NO', 'ONO', 'O', 'OSO', 'SO', 'SSO', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
-    return dirs[n % 16]
-}
-
-function windSpeedColor(speed: number | null | undefined): string {
-    if (speed == null) return 'w-wind-gray'
-    if (speed <= 14) return 'w-wind-green'
-    if (speed <= 25) return 'w-wind-yellow'
-    if (speed <= 30) return 'w-wind-orange'
-    if (speed <= 38) return 'w-wind-red'
-    return 'w-wind-black'
 }
 
 /** Same priority as foehn.vue: series timestamp preferred for consistency with the chart */
@@ -128,18 +97,14 @@ function formatCalculationTime(iso: string) {
 
 const foehnRows = computed(() => foehnSeries.value?.rows ?? [])
 
-function windSpeedColorHex(speed: number | null | undefined): string {
-    if (speed == null) return '#6b7280'
-    if (speed <= 14) return '#16a34a'
-    if (speed <= 25) return '#eab308'
-    if (speed <= 30) return '#ea580c'
-    if (speed <= 38) return '#dc2626'
-    return '#000000'
-}
-
 /** After PWS failure, skip PWS fetches until then (aligned with server error cache, default 5m). */
 const PWS_ERROR_BACKOFF_MS = 300_000
 let pwsBackoffUntil = 0
+
+/** Weathercloud values are typically refreshed quickly, but we still throttle to 60s. */
+const WEATHERCLOUD_POLL_MS = 60_000
+const WEATHERCLOUD_ERROR_BACKOFF_MS = 300_000
+let weathercloudBackoffUntil = 0
 
 async function fetchAll() {
     const b = base()
@@ -154,6 +119,7 @@ async function fetchAll() {
     try {
         const now = Date.now()
         const runPws = now >= pwsBackoffUntil
+        const runWeathercloud = now >= weathercloudBackoffUntil
 
         const [measRes, windRes, southRes, satteleRes, pichlbergRes] = await Promise.all([
             fetch(`${b}/api/measurement`),
@@ -172,10 +138,16 @@ async function fetchAll() {
             ])
         }
 
+        let weathercloudRes: Response | null = null
+        if (runWeathercloud) {
+            weathercloudRes = await fetch(`${b}/api/weathercloud/current?deviceId=${encodeURIComponent(weathercloudDeviceId)}`)
+        }
+
         apiStatus.value = {
             measurement: `${measRes.status} ${measRes.statusText}`,
             windStations: `${windRes.status} ${windRes.statusText}`,
             southtyrol: `${southRes.status} ${southRes.statusText}`,
+            weathercloud: weathercloudRes ? `${weathercloudRes.status} ${weathercloudRes.statusText}` : 'skipped (rate limit)',
             pws29: pwsRes29 ? `${pwsRes29.status} ${pwsRes29.statusText}` : 'skipped (error backoff)',
             pwsIsarnt1: pwsResIsarnt1 ? `${pwsResIsarnt1.status} ${pwsResIsarnt1.statusText}` : 'skipped (error backoff)',
             weatherlinkSattele: `${satteleRes.status} ${satteleRes.statusText}`,
@@ -195,6 +167,14 @@ async function fetchAll() {
                 pwsBackoffUntil = Date.now() + PWS_ERROR_BACKOFF_MS
             } else {
                 pwsBackoffUntil = 0
+            }
+        }
+        if (weathercloudRes?.ok) weathercloudData.value = await weathercloudRes.json()
+        if (runWeathercloud) {
+            if (!weathercloudRes?.ok) {
+                weathercloudBackoffUntil = Date.now() + WEATHERCLOUD_ERROR_BACKOFF_MS
+            } else {
+                weathercloudBackoffUntil = Date.now() + WEATHERCLOUD_POLL_MS
             }
         }
         if (satteleRes.ok) weatherlinkSattele.value = await satteleRes.json()
@@ -277,54 +257,12 @@ onMounted(() => {
         <template v-else>
             <section class="w-section">
                 <div class="w-grid">
-                    <template v-for="station in STATIONS" :key="station.id">
-                        <article v-if="getStationData(station)" class="w-card">
-                            <div class="w-card-inner">
-                                <div class="w-card-top">
-                                    <p class="w-station-name">{{ station.name }}</p>
-                                    <div class="w-card-top-right">
-                                        <span v-if="getStationData(station)!.condition.temp != null" class="w-temp-top">
-                                            {{ getStationData(station)!.condition.temp }} °C
-                                        </span>
-                                        <span v-if="getStationData(station)?.ts" class="w-time">
-                                            {{ new Date(getStationData(station)!.ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) }}
-                                        </span>
-                                        <span v-if="LIVE_STATION_IDS.has(station.id)" class="w-live">
-                                            <span class="w-live-dot" />
-                                            LIVE
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div class="w-card-bottom">
-                                    <div class="w-winds">
-                                        <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_last)">
-                                            <strong>{{ getStationData(station)!.condition.wind_speed_last ?? '—' }}</strong><span class="w-wind-unit-small"> km/h</span>
-                                        </span>
-                                        <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_hi_last_10_min)">
-                                            <strong>{{ getStationData(station)!.condition.wind_speed_hi_last_10_min ?? '—' }}</strong><span class="w-wind-unit-small"> km/h 10′ max</span>
-                                        </span>
-                                        <span class="w-avg">
-                                            <strong>{{ getStationData(station)!.condition.wind_speed_avg_last_10_min ?? '—' }}</strong><span class="w-wind-unit-small"> km/h 10′ Ø</span>
-                                        </span>
-                                    </div>
-
-                                    <div class="w-dir-wrap">
-                                        <svg v-if="getStationData(station)!.condition.wind_dir_last != null" viewBox="0 0 24 12" class="w-arrow" :style="{ transform: `rotate(${(windDirDeg(getStationData(station)!.condition, station.id) + 180) % 360}deg)` }">
-                                            <path d="M12 0 L9 12 L12 11 L15 12 Z" :fill="windSpeedColorHex(getStationData(station)!.condition.wind_speed_hi_last_10_min ?? null)" :stroke="windSpeedColorHex(getStationData(station)!.condition.wind_speed_last ?? null)" stroke-width="0.8" stroke-linejoin="round" />
-                                        </svg>
-                                        <span class="w-dir-text">
-                                            {{
-                                                getStationData(station)!.condition.wind_dir_last != null
-                                                    ? degToDir(windDirDeg(getStationData(station)!.condition, station.id))
-                                                    : '—'
-                                            }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </article>
-                    </template>
+                    <WindStationGrid
+                        variant="widget"
+                        :stations="STATIONS"
+                        :liveStationIds="LIVE_STATION_IDS"
+                        :getStationData="getStationData"
+                    />
                 </div>
             </section>
 
@@ -347,7 +285,7 @@ onMounted(() => {
     </div>
 </template>
 
-<style scoped>
+<style>
 .w-root {
     font-size: 17.5px !important;
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',

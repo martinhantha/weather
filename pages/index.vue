@@ -3,26 +3,11 @@ import { nextTick } from 'vue'
 import { useMeasurement } from '~/composables/measurment'
 import type { IWeatherData, IMeasurement, IStationConfig, ICondition, INormalizedSouthTyrolStation } from '~/types'
 
-/** Station IDs that have live data (real-time); show green LIVE indicator. */
-const LIVE_STATION_IDS = new Set(['33570', 'ISARNT29', 'ISARNT1'])
+import WindStationGrid from '~/shared/components/WindStationGrid'
+import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes } from '~/shared/stations'
+import { windSpeedColor as windSpeedColorShared, windSpeedColorHex, windDirDeg } from '~/shared/windDisplay'
 
-const STATIONS: IStationConfig[] = [
-    { id: '33570', name: 'Pichlberg', source: 'weatherlink', station_id: '33570' },
-    { id: '92575', name: 'Sattele', source: 'weatherlink', station_id: '92575' },
-    { id: 'ISARNT29', name: 'Reinswald', source: 'pws', station_id: 'ISARNT29' },
-    { id: 'ISARNT1', name: 'Moosbrugg', source: 'pws', station_id: 'ISARNT1' },
-    { id: '82200MS', name: 'Sarnthein', source: 'southtyrol', station_code: '82200MS' },
-    // { id: '82910MS', name: 'Jenesien', source: 'southtyrol', station_code: '82910MS' },
-    { id: '80100SF', name: 'Pens Tramintal', source: 'southtyrol', station_code: '80100SF' },
-    { id: '35100WS', name: 'Jaufen', source: 'southtyrol', station_code: '35100WS' },
-    { id: '82500WS', name: 'Rittnerhorn', source: 'southtyrol', station_code: '82500WS' },
-    { id: '69900MS', name: 'Plose', source: 'southtyrol', station_code: '69900MS' },
-    { id: '66000WS', name: 'Dannelspitz', source: 'southtyrol', station_code: '66000WS' },
-    { id: '37100MS', name: 'Sterzing', source: 'southtyrol', station_code: '37100MS' },
-    { id: '06040WS', name: 'Sulden Schöntaufspitze', source: 'southtyrol', station_code: '06040WS' },
-]
-
-const SOUTH_TIROL_CODES = STATIONS.filter((s) => s.source === 'southtyrol').map((s) => s.station_code!).join(',')
+const SOUTH_TIROL_CODES = getSouthTyrolCodes()
 
 const { data, refresh } = await useFetch('/api/measurement')
 console.log(data.value)
@@ -42,6 +27,10 @@ const pwsBackoffUntil = ref(0)
 const PWS_CLIENT_ERROR_BACKOFF_MS = 300_000
 const { data: weatherlinkSatteleData, refresh: refreshWeatherlinkSattele } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/weatherlink/current?stationId=92575')
 const { data: weatherlinkPichlbergData } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/weatherlink/current?stationId=33570')
+const weathercloudDeviceId = STATIONS.find((s) => s.source === 'weathercloud')?.station_id ?? '9123924154'
+const { data: weathercloudData, refresh: refreshWeathercloud } = await useFetch<{ ts: number; condition: Partial<ICondition> }>(
+    `/api/weathercloud/current?deviceId=${weathercloudDeviceId}`
+)
 
 const summ = 270
 const weatherData = ref(<IWeatherData>{})
@@ -51,31 +40,8 @@ const degreesMax = ref('-135deg')
 const direction = ref('0deg')
 const directionScalar = ref('0deg')
 
-function degToDir(deg: number): string {
-    const number = Math.round(deg / 22.5 + 0.5)
-    const directions = ['N', 'NNO', 'NO', 'ONO', 'O', 'OSO', 'SO', 'SSO', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
-    return directions[number % 16]
-}
-
-/** Tailwind text color class for wind speed: green <= 14, yellow 15–25, orange 26–30, red 31–38, black > 38 km/h. */
 function windSpeedColor(speed: number | null | undefined): string {
-    if (speed == null) return 'text-gray-500'
-    if (speed <= 14) return 'text-green-600'
-    if (speed <= 25) return 'text-yellow-500'
-    if (speed <= 30) return 'text-orange-600'
-    if (speed <= 38) return 'text-red-600'
-    return 'text-black'
-}
-
-/** Hex color for wind speed arrows, same bands as windSpeedColor. */
-function windSpeedColorHex(speed: number | null | undefined): string {
-    if (speed == null) return '#6b7280' // gray-500
-    if (speed <= 5) return '#ffffff' // white
-    if (speed <= 14) return '#16a34a' // green-600
-    if (speed <= 25) return '#eab308' // yellow-500
-    if (speed <= 30) return '#ea580c' // orange-600
-    if (speed <= 38) return '#dc2626' // red-600
-    return '#000000'
+    return windSpeedColorShared(speed, 'page')
 }
 
 function getStationData(station: IStationConfig): { ts: number; condition: Partial<ICondition> } | null {
@@ -105,6 +71,9 @@ function getStationData(station: IStationConfig): { ts: number; condition: Parti
         const d = southTyrolData.value[station.station_code!]
         return { ts: d.ts, condition: d as Partial<ICondition> }
     }
+    if (station.source === 'weathercloud' && station.station_id === weathercloudDeviceId && weathercloudData.value) {
+        return { ts: weathercloudData.value.ts, condition: weathercloudData.value.condition }
+    }
     return null
 }
 
@@ -121,12 +90,6 @@ const selectedCondition = computed(() => {
     return data?.condition ?? null
 })
 
-/** Pichlberg (33570) wind direction is 180° off; correct for display. */
-function windDirDeg(cond: Partial<ICondition> | null, stationId: string): number {
-    const raw = cond?.wind_dir_last ?? 0
-    if (stationId === '33570') return (raw + 180) % 360
-    return raw
-}
 function windDirScalarDeg(cond: Partial<ICondition> | null, stationId: string): number {
     const raw = cond?.wind_dir_scalar_avg_last_10_min ?? cond?.wind_dir_last ?? 0
     if (stationId === '33570') return (raw + 180) % 360
@@ -145,6 +108,10 @@ const selectedTs = computed(() => {
 const selectedStationName = computed(() =>
     STATIONS.find((s) => s.id === selectedStationId.value)?.name ?? '–'
 )
+
+function selectStation(stationId: string) {
+    selectedStationId.value = stationId
+}
 
 function update() {
     weatherData.value = useMeasurement(data.value as unknown as IMeasurement)
@@ -177,6 +144,7 @@ onMounted(() => {
     setInterval(async () => {
         refreshSouthTyrol()
         refreshWeatherlinkSattele()
+        refreshWeathercloud()
         if (Date.now() < pwsBackoffUntil.value) return
         await refreshPws()
         await refreshPwsIsarnt1()
@@ -214,65 +182,14 @@ onMounted(() => {
         </header>
 
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <template v-for="station in STATIONS" :key="station.id">
-                <article v-if="getStationData(station)" class="cursor-pointer rounded-xl border-2 p-5 shadow-sm transition hover:border-sky-300 hover:shadow bg-gray-200" :class="selectedStationId === station.id ? 'border-sky-500 ring-2 ring-sky-200' : 'border-gray-200'" @click="selectedStationId = station.id">
-                    <div class="space-y-3 border-gray-100">
-                        <div class="flex items-start justify-between gap-3 border-b pb-4">
-                            <div class="min-w-0 flex-1">
-                                <p class="text-base font-medium text-gray-900">
-                                    {{ station.name }}
-                                </p>
-                            </div>
-                            <div class="flex items-center justify-between text-base text-gray-600">
-                                <div v-if="getStationData(station)!.condition.temp != null" class="flex items-baseline gap-1.5">
-                                    <span class="text-gray-800">
-                                        {{ getStationData(station)!.condition.temp }} °C
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-2">
-                                <span v-if="getStationData(station)?.ts" class="text-xs tabular-nums text-gray-500">
-                                    {{ new Date(getStationData(station)!.ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) }}
-                                </span>
-                                <span v-if="LIVE_STATION_IDS.has(station.id)" class="inline-flex items-center gap-1 rounded-full border border-emerald-400 bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
-                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                                    LIVE
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-base text-gray-600 justify-between">
-                            <div class="flex items-center gap-2">
-                                <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_last)">
-                                    <span class="font-semibold">{{ getStationData(station)!.condition.wind_speed_last ?? '—' }}</span><span class="text-xs text-gray-600"> km/h</span>
-                                </span>
-                                <span class="hidden text-gray-300 sm:inline">·</span>
-                                <span :class="windSpeedColor(getStationData(station)!.condition.wind_speed_hi_last_10_min)">
-                                    <span class="font-semibold">{{ getStationData(station)!.condition.wind_speed_hi_last_10_min ?? '—' }}</span><span class="text-xs text-gray-600"> km/h 10′ max</span>
-                                </span>
-                                <span class="hidden text-gray-300 sm:inline">·</span>
-                                <span class="text-gray-600">
-                                    <span>{{ getStationData(station)!.condition.wind_speed_avg_last_10_min ?? '—' }}</span><span class="text-xs text-gray-600"> km/h 10′ Ø</span>
-                                </span>
-                            </div>
-                            <div class="flex items-center gap-2 align-end">
-                                <svg v-if="getStationData(station) && getStationData(station)!.condition.wind_dir_last != null" viewBox="0 0 24 12" xmlns="http://www.w3.org/2000/svg" class="h-9 w-9" :style="{ transform: `rotate(${(windDirDeg(getStationData(station)!.condition, station.id) + 180) % 360}deg)` }">
-                                    <path d="M12 0 L9 12 L12 11 L15 12 Z" :fill="windSpeedColorHex(getStationData(station)!.condition.wind_speed_hi_last_10_min ?? null)" :stroke="windSpeedColorHex(getStationData(station)!.condition.wind_speed_last ?? null)" stroke-width="0.8" stroke-linejoin="round" />
-                                </svg>
-                                <div class="flex items-baseline gap-1.5">
-                                    <span class="font-semibold text-gray-900">
-                                        {{
-                                            getStationData(station)!.condition.wind_dir_last != null
-                                                ? degToDir(windDirDeg(getStationData(station)!.condition, station.id))
-                                                : '—'
-                                        }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </article>
-            </template>
+            <WindStationGrid
+                variant="page"
+                :stations="STATIONS"
+                :liveStationIds="LIVE_STATION_IDS"
+                :getStationData="getStationData"
+                :selectedStationId="selectedStationId"
+                :onSelect="selectStation"
+            />
         </div>
     </section>
 
