@@ -195,9 +195,20 @@ async function fetchFoehn() {
     if (!b) return
     try {
         const [dRes, sRes] = await Promise.all([fetch(`${b}/api/foehn-diff`), fetch(`${b}/api/foehn-series`)])
+        apiStatus.value = {
+            ...apiStatus.value,
+            foehnDiff: `${dRes.status} ${dRes.statusText}`,
+            foehnSeries: `${sRes.status} ${sRes.statusText}`,
+        }
         if (dRes.ok) foehnDiff.value = await dRes.json()
         if (sRes.ok) foehnSeries.value = await sRes.json()
-    } catch {
+    } catch (e: any) {
+        apiStatus.value = {
+            ...apiStatus.value,
+            foehnDiff: `error`,
+            foehnSeries: `error`,
+        }
+        if (props.debug) log(`fetchFoehn failed: ${e?.message || e}`)
         /* keep previous foehn data */
     } finally {
         lastFoehnFetchAt = Date.now()
