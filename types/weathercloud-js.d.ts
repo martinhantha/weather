@@ -1,4 +1,3 @@
-declare module 'weathercloud-js/dist/index.js' {
+declare module 'weathercloud-js' {
 	export function getWeather(id: any): Promise<any>
 }
-
