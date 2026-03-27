@@ -3,11 +3,9 @@
  *
  * Query: deviceId (default: 9123924154).
  * Returns normalized object compatible with frontend (same shape as WeatherLink condition).
- *
- * Loads `weathercloud-js` via dynamic import so a missing/broken install returns 502 JSON
- * instead of Nitro’s generic 500 from a failed static chunk import.
  */
 import type { ICondition } from '~/types'
+import { fetchWeathercloudValues } from '../../utils/weathercloud'
 
 type WeathercloudCurrentOut = { ts: number; condition: Partial<ICondition> }
 
@@ -39,21 +37,8 @@ const inflightMap = ((globalThis as any).__weathercloudCurrentInflight ??= new M
 	Promise<FetchResult>
 >()) as Map<string, Promise<FetchResult>>
 
-async function getGetWeather(): Promise<(id: any) => Promise<any>> {
-	const g = globalThis as any
-	if (g.__weathercloudGetWeatherFn) {
-		return g.__weathercloudGetWeatherFn
-	}
-	const mod = await import('weathercloud-js')
-	if (typeof mod.getWeather !== 'function') {
-		throw new Error('weathercloud-js: getWeather is not a function')
-	}
-	g.__weathercloudGetWeatherFn = mod.getWeather
-	return mod.getWeather
-}
-
 function mpsToKmh(num: number): number {
-	// weathercloud-js treats `wspd` as m/s (see chillFn uses `wspd * 3.6`)
+	// Weathercloud `wspd` is m/s (same as weathercloud-js chillFn using wspd * 3.6).
 	return Math.round(num * 3.6)
 }
 
@@ -65,15 +50,12 @@ export default defineEventHandler(async (event) => {
 		const cacheKey = getCacheKey(deviceId)
 		const now = Date.now()
 
-		// 1) Serve cached data to all users (success or cached upstream errors).
 		const cached = cacheMap.get(cacheKey)
 		if (cached && cached.expiresAt > now) {
 			setResponseStatus(event, cached.result.status)
 			return cached.result.data
 		}
 
-		// 2) If an upstream request is already in flight for this station,
-		//    await it instead of starting a new one (prevents request storms).
 		const inflight = inflightMap.get(cacheKey)
 		if (inflight) {
 			const res = await inflight
@@ -81,23 +63,20 @@ export default defineEventHandler(async (event) => {
 			return res.data
 		}
 
-		// 3) Start exactly one upstream request and let all concurrent users share it.
 		const promise = (async (): Promise<FetchResult> => {
 			try {
-				const getWeather = await getGetWeather()
-				const res = await getWeather(deviceId as any)
+				const res = await fetchWeathercloudValues(deviceId)
 				if (!res || typeof res !== 'object' || 'error' in res) {
 					return {
 						status: 502,
 						data: {
 							error: 'Weathercloud API unavailable',
 							deviceId,
-							detail: (res as any)?.error ?? res,
+							detail: (res as { error?: unknown })?.error ?? res,
 						},
 					}
 				}
 
-				// weathercloud-js returns epoch and a set of value fields.
 				const epoch = (res as any).epoch
 				if (typeof epoch !== 'number') {
 					return {
@@ -112,14 +91,12 @@ export default defineEventHandler(async (event) => {
 				const condition: Partial<ICondition> = {
 					temp: typeof (res as any).temp === 'number' ? (res as any).temp : undefined,
 					hum: typeof (res as any).hum === 'number' ? (res as any).hum : undefined,
-					// weathercloud device values are in m/s; convert to km/h to match other providers.
 					wind_speed_last: typeof (res as any).wspd === 'number' ? mpsToKmh((res as any).wspd) : undefined,
 					wind_speed_hi_last_10_min:
 						typeof (res as any).wspdhi === 'number' ? mpsToKmh((res as any).wspdhi) : undefined,
 					wind_speed_avg_last_10_min:
 						typeof (res as any).wspdavg === 'number' ? mpsToKmh((res as any).wspdavg) : undefined,
 					wind_dir_last: typeof (res as any).wdir === 'number' ? (res as any).wdir : undefined,
-					// Weathercloud exposes an averaged wind direction; use it for the "scalar" arrow.
 					wind_dir_scalar_avg_last_10_min:
 						typeof (res as any).wdiravg === 'number' ? (res as any).wdiravg : undefined,
 				}
@@ -156,4 +133,3 @@ export default defineEventHandler(async (event) => {
 		}
 	}
 })
-

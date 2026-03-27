@@ -2,6 +2,12 @@
 export default defineNuxtConfig({
 	// devtools: { enabled: true },
 
+	// Avoids client fetches to `/_nuxt/builds/meta/*.json` (app manifest) which can return 500 in
+	// dev and spam the console; you lose client-side routeRules from the manifest only.
+	experimental: {
+		appManifest: false,
+	},
+
 	runtimeConfig: {
 		// MongoDB Atlas Data API (fetch) – works on Node and Cloudflare
 		mongoDataApiAppId: process.env.MONGODB_APP_ID,
@@ -24,11 +30,9 @@ export default defineNuxtConfig({
 			baseURL: '/',
 		},
 	},
-	devServer: {
-		host: {
-			url: process.env.VITE_API_URL || 'http://localhost:3000',
-		},
-	},
+	// `devServer.host` must be a hostname string (e.g. 'localhost', '0.0.0.0'), not `{ url }`.
+	// Wrong config caused listhen "Invalid hostname [object Object]" and flaky API routes in dev.
+	// Widget dev URL: set `VITE_API_URL` in widget/vite (see widget/README.md), not here.
 	nitro: {
 		plugins: ['~/server/index.ts'],
 		// Use a Node-compatible preset so mongoose/mongodb can be bundled.
@@ -38,11 +42,6 @@ export default defineNuxtConfig({
 		compatibilityDate: '2026-03-18',
 		experimental: {
 			tasks: true,
-		},
-		// Bundle weathercloud-js into the server output so production does not depend on
-		// node_modules next to .output (dynamic import would otherwise resolve to missing paths).
-		externals: {
-			inline: ['weathercloud-js'],
 		},
 	},
 	modules: ['nuxt-scheduler', '@nuxtjs/tailwindcss'],
