@@ -4,7 +4,7 @@ import { useMeasurement } from '~/composables/measurment'
 import type { IWeatherData, IMeasurement, IStationConfig, ICondition, INormalizedSouthTyrolStation } from '~/types'
 
 import WindStationGrid from '~/shared/components/WindStationGrid'
-import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes } from '~/shared/stations'
+import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS } from '~/shared/stations'
 import { windSpeedColor as windSpeedColorShared, windSpeedColorHex, windDirDeg } from '~/shared/windDisplay'
 
 const SOUTH_TIROL_CODES = getSouthTyrolCodes()
@@ -27,9 +27,25 @@ const pwsBackoffUntil = ref(0)
 const PWS_CLIENT_ERROR_BACKOFF_MS = 300_000
 const { data: weatherlinkSatteleData, refresh: refreshWeatherlinkSattele } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/weatherlink/current?stationId=92575')
 const { data: weatherlinkPichlbergData } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/weatherlink/current?stationId=33570')
-const weathercloudDeviceId = STATIONS.find((s) => s.source === 'weathercloud')?.station_id ?? '9123924154'
-const { data: weathercloudData, refresh: refreshWeathercloud } = await useFetch<{ ts: number; condition: Partial<ICondition> }>(
-    `/api/weathercloud/current?deviceId=${weathercloudDeviceId}`
+const { data: weathercloudByDeviceId, refresh: refreshWeathercloud } = await useAsyncData(
+    'weathercloud-all',
+    async () => {
+        const ids = WEATHERCLOUD_DEVICE_IDS
+        const results = await Promise.allSettled(
+            ids.map((id) =>
+                $fetch<{ ts: number; condition: Partial<ICondition> }>(
+                    `/api/weathercloud/current?deviceId=${encodeURIComponent(id)}`,
+                ),
+            ),
+        )
+        const out: Record<string, { ts: number; condition: Partial<ICondition> }> = {}
+        results.forEach((r, i) => {
+            if (r.status === 'fulfilled') {
+                out[ids[i]!] = r.value
+            }
+        })
+        return out
+    },
 )
 
 const summ = 270
@@ -71,8 +87,9 @@ function getStationData(station: IStationConfig): { ts: number; condition: Parti
         const d = southTyrolData.value[station.station_code!]
         return { ts: d.ts, condition: d as Partial<ICondition> }
     }
-    if (station.source === 'weathercloud' && station.station_id === weathercloudDeviceId && weathercloudData.value) {
-        return { ts: weathercloudData.value.ts, condition: weathercloudData.value.condition }
+    if (station.source === 'weathercloud' && station.station_id && weathercloudByDeviceId.value?.[station.station_id]) {
+        const d = weathercloudByDeviceId.value[station.station_id]
+        return { ts: d.ts, condition: d.condition }
     }
     return null
 }

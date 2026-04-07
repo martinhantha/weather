@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import type { ICondition, IStationConfig } from '../../types'
 import FoehnPressureChart from './FoehnPressureChart.vue'
 import WindStationGrid from '../../shared/components/WindStationGrid'
-import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes } from '../../shared/stations'
+import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS } from '../../shared/stations'
 
 const props = withDefaults(
     defineProps<{ apiUrl: string; debug?: boolean }>(),
@@ -19,8 +19,7 @@ const pwsData = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
 const pwsDataIsarnt1 = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
 const weatherlinkSattele = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
 const weatherlinkPichlberg = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
-const weathercloudDeviceId = STATIONS.find((s: IStationConfig) => s.source === 'weathercloud')?.station_id ?? '9123924154'
-const weathercloudData = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
+const weathercloudByDeviceId = ref<Record<string, { ts: number; condition: Partial<ICondition> }>>({})
 type SeriesRow = {
     time: string
     observation: number | null
@@ -67,8 +66,8 @@ function getStationData(station: IStationConfig): { ts: number; condition: Parti
         const d = southTyrol.value[station.station_code!]
         return { ts: d.ts, condition: d }
     }
-    if (station.source === 'weathercloud' && station.station_id === weathercloudDeviceId && weathercloudData.value) {
-        return weathercloudData.value
+    if (station.source === 'weathercloud' && station.station_id && weathercloudByDeviceId.value[station.station_id]) {
+        return weathercloudByDeviceId.value[station.station_id]
     }
     if (station.source === 'weatherlink' && station.station_id === '33570' && measurement.value?.json?.data) {
         const d = measurement.value.json.data
@@ -138,16 +137,23 @@ async function fetchAll() {
             ])
         }
 
-        let weathercloudRes: Response | null = null
-        if (runWeathercloud) {
-            weathercloudRes = await fetch(`${b}/api/weathercloud/current?deviceId=${encodeURIComponent(weathercloudDeviceId)}`)
-        }
+        const weathercloudResponses =
+            runWeathercloud && WEATHERCLOUD_DEVICE_IDS.length > 0
+                ? await Promise.all(
+                      WEATHERCLOUD_DEVICE_IDS.map((id) =>
+                          fetch(`${b}/api/weathercloud/current?deviceId=${encodeURIComponent(id)}`),
+                      ),
+                  )
+                : []
 
         apiStatus.value = {
             measurement: `${measRes.status} ${measRes.statusText}`,
             windStations: `${windRes.status} ${windRes.statusText}`,
             southtyrol: `${southRes.status} ${southRes.statusText}`,
-            weathercloud: weathercloudRes ? `${weathercloudRes.status} ${weathercloudRes.statusText}` : 'skipped (rate limit)',
+            weathercloud:
+                weathercloudResponses.length > 0
+                    ? weathercloudResponses.map((r) => `${r.status}`).join(', ')
+                    : 'skipped (rate limit)',
             pws29: pwsRes29 ? `${pwsRes29.status} ${pwsRes29.statusText}` : 'skipped (error backoff)',
             pwsIsarnt1: pwsResIsarnt1 ? `${pwsResIsarnt1.status} ${pwsResIsarnt1.statusText}` : 'skipped (error backoff)',
             weatherlinkSattele: `${satteleRes.status} ${satteleRes.statusText}`,
@@ -169,9 +175,17 @@ async function fetchAll() {
                 pwsBackoffUntil = 0
             }
         }
-        if (weathercloudRes?.ok) weathercloudData.value = await weathercloudRes.json()
-        if (runWeathercloud) {
-            if (!weathercloudRes?.ok) {
+        if (runWeathercloud && weathercloudResponses.length > 0) {
+            const next = { ...weathercloudByDeviceId.value }
+            for (let i = 0; i < weathercloudResponses.length; i++) {
+                const res = weathercloudResponses[i]!
+                const id = WEATHERCLOUD_DEVICE_IDS[i]!
+                if (res.ok) {
+                    next[id] = await res.json()
+                }
+            }
+            weathercloudByDeviceId.value = next
+            if (!weathercloudResponses.some((r) => r.ok)) {
                 weathercloudBackoffUntil = Date.now() + WEATHERCLOUD_ERROR_BACKOFF_MS
             } else {
                 weathercloudBackoffUntil = Date.now() + WEATHERCLOUD_POLL_MS
