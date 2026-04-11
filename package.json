@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prebuild": "node ./node_modules/esbuild/install.js",
     "build": "yarn build:widget && nuxt build",
     "build:widget": "cd widget && yarn install && yarn build && mkdir -p ../public && cp -r dist/* ../public/",
     "dev": "nuxt dev",
