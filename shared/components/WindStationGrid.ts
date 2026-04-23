@@ -86,8 +86,8 @@ export default defineComponent({
 										[
 											h('path', {
 												d: 'M12 0 L9 12 L12 11 L15 12 Z',
-												fill: windSpeedColorHex(cond.wind_speed_hi_last_10_min ?? null),
-												stroke: windSpeedColorHex(cond.wind_speed_last ?? null),
+												fill: windSpeedColorHex(cond.wind_speed_last ?? null),
+												stroke: windSpeedColorHex(cond.wind_speed_hi_last_10_min ?? null),
 												'stroke-width': 0.8,
 												'stroke-linejoin': 'round',
 											}),
@@ -176,8 +176,8 @@ export default defineComponent({
 									[
 										h('path', {
 											d: 'M12 0 L9 12 L12 11 L15 12 Z',
-											fill: windSpeedColorHex(cond.wind_speed_hi_last_10_min ?? null),
-											stroke: windSpeedColorHex(cond.wind_speed_last ?? null),
+											fill: windSpeedColorHex(cond.wind_speed_last ?? null),
+											stroke: windSpeedColorHex(cond.wind_speed_hi_last_10_min ?? null),
 											'stroke-width': 0.8,
 											'stroke-linejoin': 'round',
 										}),

@@ -345,7 +345,7 @@ onMounted(() => {
                         </div>
                         <div class="wind-arrow wind-arrow--scalar" :style="{ transform: `translate(-50%, -50%) rotate(${directionScalar})` }">
                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="wind-arrow__svg">
-                                <path d="M12 0 L9 12 L12 11 L15 12 Z" :fill="windSpeedColorHex(selectedCondition?.wind_speed_avg_last_10_min ?? null)" :stroke="windSpeedColorHex(selectedCondition?.wind_speed_hi_last_10_min ?? null)" stroke-width="0.5" stroke-linejoin="round" opacity="0.4" />
+                                <path d="M12 0 L9 12 L12 11 L15 12 Z" :fill="windSpeedColorHex(selectedCondition?.wind_speed_last ?? null)" :stroke="windSpeedColorHex(selectedCondition?.wind_speed_hi_last_10_min ?? null)" stroke-width="0.5" stroke-linejoin="round" opacity="0.4" />
                             </svg>
                         </div>
                     </div>
