@@ -52,12 +52,13 @@ function conditionFromSensorData(d: Record<string, unknown>): { ts: number; cond
 	const toKmh = (v: number) => (windFromAlternate ? Math.round(v) : mphToKmh(v))
 	if (temp == null && wind == null && wind10 == null) return null
 	const ts = d.ts as number
-	const hiRaw = hasAlternateWind
-		? (num(d.wind_speed_10_min_hi) ?? num((d as Record<string, unknown>).wind_gust) ?? num(d.wind_speed_hi_last_10_min))
-		: (num(d.wind_speed_hi_last_10_min) ?? num(d.wind_speed_10_min_hi) ?? num((d as Record<string, unknown>).wind_gust))
+	const hiRaw = num(d.wind_speed_hi_last_10_min)
+		?? num(d.wind_speed_10_min_hi)
+		?? num((d as Record<string, unknown>).wind_gust)
 	// Keep "10' max" strictly tied to gust/high fields.
 	// If provider does not send a gust/high value, expose undefined instead of mirroring current/avg.
 	const hiVal = hiRaw != null ? toKmh(hiRaw) : undefined
+    
 	const currentVal = wind != null ? toKmh(wind) : (wind10 != null ? toKmh(wind10) : hiVal)
 	const avg10Val = wind10 != null ? toKmh(wind10) : (wind != null ? toKmh(wind) : hiVal)
 	const condition: Partial<ICondition> = {

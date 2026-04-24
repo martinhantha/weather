@@ -25,6 +25,7 @@ export async function fetchWeathercloudValues(id: string): Promise<Record<string
 			},
 			body: '',
 		})
+		console.log(resp)
 		const data = await resp.json()
 		if (data && typeof data === 'object' && 'error' in data && (data as { error?: unknown }).error === true) {
 			return { error: (data as { err?: unknown }).err ?? data }
