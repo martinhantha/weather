@@ -38,9 +38,6 @@ export async function nodeFind(
 	if (opts.sort && Object.keys(opts.sort).length) q = q.sort(opts.sort)
 	if (opts.limit != null) q = q.limit(opts.limit)
 	const docs = await q.lean()
-	// #region agent log
-	fetch('http://127.0.0.1:7491/ingest/bfe2b03b-e598-40e2-8df9-2a0a3917f88b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0bf217'},body:JSON.stringify({sessionId:'0bf217',location:'db-node.ts:find',message:'node find (mongoose)',data:{len:(docs as unknown[]).length},hypothesisId:'B,E',timestamp:Date.now()})}).catch(()=>{})
-	// #endregion
 	return (docs as unknown[]).map((d: unknown) => {
 		const x = d as { _id?: unknown; timeid?: string; json?: unknown }
 		return { _id: idToString(x), timeid: x.timeid, json: x.json }

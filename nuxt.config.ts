@@ -48,7 +48,7 @@ export default defineNuxtConfig({
 	css: ['~/assets/css/tailwind.css'],
 	tailwindcss: {
 		exposeConfig: true,
-		viewer: true,
+		viewer: process.env.NODE_ENV === 'development',
 		// and more...
 	},
 })

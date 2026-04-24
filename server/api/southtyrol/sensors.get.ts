@@ -59,7 +59,7 @@ export default defineEventHandler(async (event) => {
 	}
 
 	const results: Record<string, INormalizedSouthTyrolStation> = {}
-	for (const code of codes) {
+	await Promise.all(codes.map(async (code) => {
 		try {
 			const url = `${SOUTH_TIROL_SENSORS_URL}?station_code=${encodeURIComponent(code)}`
 			const rows = await $fetch<ISouthTyrolSensorRow[]>(url)
@@ -68,7 +68,7 @@ export default defineEventHandler(async (event) => {
 			console.error(`South Tyrol sensors fetch failed for ${code}:`, e)
 			results[code] = { ts: 0 }
 		}
-	}
+	}))
 
 	if (codes.length === 1) return results[codes[0]]
 	return results

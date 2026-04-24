@@ -10,7 +10,6 @@ import { windSpeedColor as windSpeedColorShared, windSpeedColorHex, windDirDeg }
 const SOUTH_TIROL_CODES = getSouthTyrolCodes()
 
 const { data, refresh } = await useFetch('/api/measurement')
-console.log(data.value)
 const { data: windStationsData, refresh: refreshWindStations } = await useFetch<Record<string, { station_id: string; ts: number; condition: Partial<ICondition> }>>('/api/wind-stations')
 const { data: southTyrolData, refresh: refreshSouthTyrol } = await useFetch<Record<string, INormalizedSouthTyrolStation>>(
     `/api/southtyrol/sensors?station_codes=${SOUTH_TIROL_CODES}`
@@ -152,13 +151,16 @@ if (windStationsData.value === null) await refreshWindStations()
 
 watch(selectedStationId, () => update(), { immediate: false })
 
+let fastTimer: ReturnType<typeof setInterval> | null = null
+let slowTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
-    setInterval(async () => {
+    fastTimer = setInterval(async () => {
         await refresh()
         await refreshWindStations()
         await update()
     }, 2000)
-    setInterval(async () => {
+    slowTimer = setInterval(async () => {
         refreshSouthTyrol()
         refreshWeatherlinkSattele()
         refreshWeathercloud()
@@ -179,6 +181,11 @@ onMounted(() => {
             pwsBackoffUntil.value = 0
         }
     }, 60 * 1000)
+})
+
+onBeforeUnmount(() => {
+    if (fastTimer != null) { clearInterval(fastTimer); fastTimer = null }
+    if (slowTimer != null) { clearInterval(slowTimer); slowTimer = null }
 })
 
 </script>

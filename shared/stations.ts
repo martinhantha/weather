@@ -31,7 +31,7 @@ export const WEATHERCLOUD_DEVICE_IDS: string[] = STATIONS.filter((s) => s.source
  * Station IDs that have live data (real-time); show green LIVE indicator.
  * Weathercloud values are typically refreshed quickly, so treat them as live too.
  */
-export const LIVE_STATION_IDS = new Set(['33570', 'ISARNT29', 'ISARNT1', 'gufl-landeplatz'])
+export const LIVE_STATION_IDS = new Set(['33570', 'ISARNT29', 'ISARNT1'])
 
 export function getSouthTyrolCodes(): string {
 	return STATIONS.filter((s) => s.source === 'southtyrol')

@@ -50,13 +50,6 @@ function interpretationFor(delta: number | null) {
 	return 'neutral'
 }
 
-function jsonSafeClone<T>(value: T): T | null {
-	try {
-		return JSON.parse(JSON.stringify(value)) as T
-	} catch {
-		return null
-	}
-}
 
 export default defineEventHandler(async () => {
 	const bolzanoUrl =
@@ -130,8 +123,6 @@ export default defineEventHandler(async () => {
 		const firstKey = fcKeys[0]
 		const differenceModel = firstKey != null ? (fcMap.get(firstKey) ?? null) : null
 
-		const bolzanoStationOut = bolzanoStation ? jsonSafeClone(bolzanoStation) : null
-
 		return {
 			generatedAt: new Date().toISOString(),
 			bolzanoPressure,
@@ -153,7 +144,7 @@ export default defineEventHandler(async () => {
 					innsbruck: omInnFc1Url,
 				},
 			},
-			bolzanoStation: bolzanoStationOut,
+			bolzanoStation,
 		}
 	} catch (e: unknown) {
 		const msg = e instanceof Error ? e.message : String(e)

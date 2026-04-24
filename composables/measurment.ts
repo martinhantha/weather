@@ -53,6 +53,3 @@ function fahrenheitToCelcius(num: number): number {
 function mpHToKmh(num: number): number {
 	return parseInt((num * 1.609344).toFixed(0))
 }
-function mpsToKmh(num: number): number {
-	return parseInt((num * 3.6).toFixed(0))
-}

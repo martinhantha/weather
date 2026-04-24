@@ -133,7 +133,6 @@ export default defineEventHandler(async (event) => {
 
 		cache.ts = now
 		cache.payload = payload
-		JSON.stringify(payload)
 		return payload
 	} catch (e: unknown) {
 		const msg = e instanceof Error ? e.message : String(e)

@@ -100,24 +100,10 @@ function pickFirstCondition(sensors: WlSensor[]): { ts: number; condition: Parti
 	return { ts: base.ts, condition: merged }
 }
 
-function dbg(payload: Record<string, unknown>) {
-	// #region agent log
-	// #endregion
-}
-
 export default defineEventHandler(async (event) => {
 	const config = useRuntimeConfig()
 	const apiKey = (config.weatherlinkApiKey as string)?.trim()
 	const apiSecret = (config.weatherlinkApiSecret as string)?.trim()
-
-	// #region agent log
-	dbg({
-		location: 'weatherlink/current.get.ts:entry',
-		message: 'Sattele handler entry',
-		data: { stationId: (getQuery(event).stationId as string) || '92575', hasApiKey: !!apiKey, hasApiSecret: !!apiSecret },
-		hypothesisId: 'H5',
-	})
-	// #endregion
 
 	if (!apiKey || !apiSecret) {
 		setResponseStatus(event, 500)
@@ -132,39 +118,14 @@ export default defineEventHandler(async (event) => {
 
 	try {
 		let data: WlResponse
-		let authUsed = 'header'
 		try {
 			data = await $fetch<WlResponse>(url, {
 				headers: {
 					'X-Api-Secret': apiSecret,
 				},
 			})
-            // if(stationId === '92575') {
-            //     console.log(JSON.stringify(data, null, 2));
-            // }
-			// #region agent log
-			dbg({
-				location: 'weatherlink/current.get.ts:header_ok',
-				message: 'Header auth succeeded',
-				data: { stationId, sensorCount: data?.sensors?.length ?? 0 },
-				hypothesisId: 'H1',
-			})
-			// #endregion
-		} catch (authErr: any) {
-			// #region agent log
-			dbg({
-				location: 'weatherlink/current.get.ts:header_failed',
-				message: 'Header auth failed, trying legacy',
-				data: {
-					stationId,
-					statusCode: authErr?.statusCode ?? authErr?.status,
-					message: authErr?.message,
-				},
-				hypothesisId: 'H1',
-			})
-			// #endregion
+		} catch {
 			// Fallback: legacy signature auth (PHP-style)
-			authUsed = 'legacy'
 			const t = Math.floor(Date.now() / 1000)
 			const params: Record<string, string> = {
 				'api-key': apiKey,
@@ -174,51 +135,15 @@ export default defineEventHandler(async (event) => {
 			const apiSignature = sign(apiSecret, params)
 			const urlLegacy = `${WL_URL}/${stationId}?api-key=${encodeURIComponent(apiKey)}&api-signature=${apiSignature}&t=${t}`
 			data = await $fetch<WlResponse>(urlLegacy)
-			// #region agent log
-			dbg({
-				location: 'weatherlink/current.get.ts:legacy_ok',
-				message: 'Legacy auth succeeded',
-				data: { stationId, sensorCount: data?.sensors?.length ?? 0 },
-				hypothesisId: 'H4',
-			})
-			// #endregion
 		}
 		const sensors = data?.sensors || []
 		const result = pickFirstCondition(sensors)
-		const firstData = sensors[0]?.data?.[0] as Record<string, unknown> | undefined
-		const firstDataKeys = firstData ? Object.keys(firstData).slice(0, 15) : []
-		// #region agent log
-		dbg({
-			location: 'weatherlink/current.get.ts:pick',
-			message: 'pickFirstCondition result',
-			data: {
-				stationId,
-				authUsed,
-				sensorCount: sensors.length,
-				pickFound: !!result,
-				firstDataKeys,
-			},
-			hypothesisId: 'H2',
-		})
-		// #endregion
 		if (!result) {
 			setResponseStatus(event, 404)
 			return { error: 'No current conditions', stationId }
 		}
 		return result
 	} catch (e: any) {
-		// #region agent log
-		dbg({
-			location: 'weatherlink/current.get.ts:catch',
-			message: 'WeatherLink final error',
-			data: {
-				stationId,
-				message: e?.message,
-				statusCode: e?.statusCode ?? e?.status,
-			},
-			hypothesisId: 'H1',
-		})
-		// #endregion
 		console.error('WeatherLink fetch failed:', e?.message || e)
 		setResponseStatus(event, 502)
 		return { error: 'WeatherLink API unavailable', stationId, detail: e?.data?.message || e?.message }
