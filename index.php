@@ -36,7 +36,7 @@ $apiRequestTimestamp = $date->getTimestamp();
 $apiKey = "zcmyfzk32xr5itw5oplnxgmuwjby7sym";
 $apiSecret = "p0neabg9fxq6qngxhrf2h3fcfhnz2kbz";
 
-$stationIds = ["92575", "33570"];  // 33570 => Pichlberg     92575 => Satteke
+$stationIds = ["92575", "33570"];  // 33570 => Pichlberg     92575 => Sattele
 
 $result = '[';
 
@@ -58,8 +58,8 @@ foreach ($stationIds as $stationId) {
    //Get Weather 
    $url = "https://api.weatherlink.com/v2/current/" . $stationId . "?api-key=" . $apiKey . "&api-signature=" . $apiSignature . "&t=" . $apiRequestTimestamp;
 
-/*echo $url;
-   echo "<br/>";*/
+   echo $url;
+   echo "<br/>";
    //  Initiate curl
    $ch = curl_init();
    // Will return the response, if false it print the response

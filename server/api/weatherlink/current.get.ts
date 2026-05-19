@@ -53,6 +53,7 @@ function conditionFromSensorData(d: Record<string, unknown>): { ts: number; cond
 	if (temp == null && wind == null && wind10 == null) return null
 	const ts = d.ts as number
 	const hiRaw = num(d.wind_speed_hi_last_10_min)
+        ?? num(d.wind_gust_10_min)
 		?? num(d.wind_speed_10_min_hi)
 		?? num((d as Record<string, unknown>).wind_gust)
 	// Keep "10' max" strictly tied to gust/high fields.
