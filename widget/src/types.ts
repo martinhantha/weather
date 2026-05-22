@@ -10,7 +10,7 @@ export interface ICondition {
 export interface IStationConfig {
     id: string
     name: string
-    source: 'weatherlink' | 'southtyrol' | 'pws' | 'weathercloud'
+    source: 'weatherlink' | 'southtyrol' | 'pws' | 'weathercloud' | 'pioupiou'
     station_id?: string
     station_code?: string
 }

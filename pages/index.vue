@@ -4,7 +4,7 @@ import { useMeasurement } from '~/composables/measurment'
 import type { IWeatherData, IMeasurement, IStationConfig, ICondition, INormalizedSouthTyrolStation } from '~/types'
 
 import WindStationGrid from '~/shared/components/WindStationGrid'
-import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS } from '~/shared/stations'
+import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS } from '~/shared/stations'
 import { windSpeedColor as windSpeedColorShared, windSpeedColorHex, windDirDeg } from '~/shared/windDisplay'
 
 const SOUTH_TIROL_CODES = getSouthTyrolCodes()
@@ -34,6 +34,26 @@ const { data: weathercloudByDeviceId, refresh: refreshWeathercloud } = await use
             ids.map((id) =>
                 $fetch<{ ts: number; condition: Partial<ICondition> }>(
                     `/api/weathercloud/current?deviceId=${encodeURIComponent(id)}`,
+                ),
+            ),
+        )
+        const out: Record<string, { ts: number; condition: Partial<ICondition> }> = {}
+        results.forEach((r, i) => {
+            if (r.status === 'fulfilled') {
+                out[ids[i]!] = r.value
+            }
+        })
+        return out
+    },
+)
+const { data: pioupiouByStationId, refresh: refreshPioupiou } = await useAsyncData(
+    'pioupiou-all',
+    async () => {
+        const ids = PIOUPIOU_STATION_IDS
+        const results = await Promise.allSettled(
+            ids.map((id) =>
+                $fetch<{ ts: number; condition: Partial<ICondition> }>(
+                    `/api/pioupiou/current?stationId=${encodeURIComponent(id)}`,
                 ),
             ),
         )
@@ -88,6 +108,10 @@ function getStationData(station: IStationConfig): { ts: number; condition: Parti
     }
     if (station.source === 'weathercloud' && station.station_id && weathercloudByDeviceId.value?.[station.station_id]) {
         const d = weathercloudByDeviceId.value[station.station_id]
+        return { ts: d.ts, condition: d.condition }
+    }
+    if (station.source === 'pioupiou' && station.station_id && pioupiouByStationId.value?.[station.station_id]) {
+        const d = pioupiouByStationId.value[station.station_id]
         return { ts: d.ts, condition: d.condition }
     }
     return null
@@ -164,6 +188,7 @@ onMounted(() => {
         refreshSouthTyrol()
         refreshWeatherlinkSattele()
         refreshWeathercloud()
+        refreshPioupiou()
         if (Date.now() < pwsBackoffUntil.value) return
         await refreshPws()
         await refreshPwsIsarnt1()

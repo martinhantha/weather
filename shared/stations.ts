@@ -12,6 +12,7 @@ export const STATIONS: IStationConfig[] = [
 	{ id: 'ISARNT1', name: 'Moosbrugg', source: 'pws', station_id: 'ISARNT1' },
 	{ id: 'gufl-landeplatz', name: 'Gufl Landeplatz', source: 'weathercloud', station_id: '9123924154' },
 	{ id: '82200MS', name: 'Sarnthein', source: 'southtyrol', station_code: '82200MS' },
+	{ id: '2163', name: 'Leiter Spitz', source: 'pioupiou', station_id: '2163' },
 	{ id: '80100SF', name: 'Pens Tramintal', source: 'southtyrol', station_code: '80100SF' },
 	{ id: 'pens', name: 'Pens', source: 'weathercloud', station_id: '6065784057' },
 	{ id: '35100WS', name: 'Jaufen', source: 'southtyrol', station_code: '35100WS' },
@@ -27,11 +28,14 @@ export const WEATHERCLOUD_DEVICE_IDS: string[] = STATIONS.filter((s) => s.source
 	(s) => s.station_id!,
 )
 
+/** Pioupiou station IDs for `source === 'pioupiou'` entries (order matches STATIONS). */
+export const PIOUPIOU_STATION_IDS: string[] = STATIONS.filter((s) => s.source === 'pioupiou').map((s) => s.station_id!)
+
 /**
  * Station IDs that have live data (real-time); show green LIVE indicator.
  * Weathercloud values are typically refreshed quickly, so treat them as live too.
  */
-export const LIVE_STATION_IDS = new Set(['33570', 'ISARNT29', 'ISARNT1'])
+export const LIVE_STATION_IDS = new Set(['33570', 'ISARNT29', 'ISARNT1', '2163'])
 
 export function getSouthTyrolCodes(): string {
 	return STATIONS.filter((s) => s.source === 'southtyrol')

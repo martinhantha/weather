@@ -84,11 +84,11 @@ export interface INormalizedSouthTyrolStation {
 	wind_dir_last?: number
 }
 
-/** Station config for wind list: WeatherLink, South Tyrol, PWS (weather.com), or Weathercloud. */
+/** Station config for wind list: WeatherLink, South Tyrol, PWS (weather.com), Weathercloud, or Pioupiou. */
 export interface IStationConfig {
 	id: string
 	name: string
-	source: 'weatherlink' | 'southtyrol' | 'pws' | 'weathercloud'
+	source: 'weatherlink' | 'southtyrol' | 'pws' | 'weathercloud' | 'pioupiou'
 	station_id?: string
 	station_code?: string
 }

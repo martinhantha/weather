@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import type { ICondition, IStationConfig } from '../../types'
 import FoehnPressureChart from './FoehnPressureChart.vue'
 import WindStationGrid from '../../shared/components/WindStationGrid'
-import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS } from '../../shared/stations'
+import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS } from '../../shared/stations'
 
 const props = withDefaults(
     defineProps<{ apiUrl: string; debug?: boolean }>(),
@@ -20,6 +20,7 @@ const pwsDataIsarnt1 = ref<{ ts: number; condition: Partial<ICondition> } | null
 const weatherlinkSattele = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
 const weatherlinkPichlberg = ref<{ ts: number; condition: Partial<ICondition> } | null>(null)
 const weathercloudByDeviceId = ref<Record<string, { ts: number; condition: Partial<ICondition> }>>({})
+const pioupiouByStationId = ref<Record<string, { ts: number; condition: Partial<ICondition> }>>({})
 type SeriesRow = {
     time: string
     observation: number | null
@@ -69,6 +70,9 @@ function getStationData(station: IStationConfig): { ts: number; condition: Parti
     if (station.source === 'weathercloud' && station.station_id && weathercloudByDeviceId.value[station.station_id]) {
         return weathercloudByDeviceId.value[station.station_id]
     }
+    if (station.source === 'pioupiou' && station.station_id && pioupiouByStationId.value[station.station_id]) {
+        return pioupiouByStationId.value[station.station_id]
+    }
     if (station.source === 'weatherlink' && station.station_id === '33570' && measurement.value?.json?.data) {
         const d = measurement.value.json.data
         if (d?.conditions?.[0]) return { ts: d.ts, condition: d.conditions[0] }
@@ -100,10 +104,13 @@ const foehnRows = computed(() => foehnSeries.value?.rows ?? [])
 const PWS_ERROR_BACKOFF_MS = 300_000
 let pwsBackoffUntil = 0
 
-/** Weathercloud values are typically refreshed quickly, but we still throttle to 60s. */
+/** Weathercloud / Pioupiou: poll at most every 60s (Pioupiou API limit). */
 const WEATHERCLOUD_POLL_MS = 60_000
 const WEATHERCLOUD_ERROR_BACKOFF_MS = 300_000
 let weathercloudBackoffUntil = 0
+const PIOUPIOU_POLL_MS = 60_000
+const PIOUPIOU_ERROR_BACKOFF_MS = 300_000
+let pioupiouBackoffUntil = 0
 
 async function fetchAll() {
     const b = base()
@@ -119,6 +126,7 @@ async function fetchAll() {
         const now = Date.now()
         const runPws = now >= pwsBackoffUntil
         const runWeathercloud = now >= weathercloudBackoffUntil
+        const runPioupiou = now >= pioupiouBackoffUntil
 
         const [measRes, windRes, southRes, satteleRes, pichlbergRes] = await Promise.all([
             fetch(`${b}/api/measurement`),
@@ -146,6 +154,15 @@ async function fetchAll() {
                   )
                 : []
 
+        const pioupiouResponses =
+            runPioupiou && PIOUPIOU_STATION_IDS.length > 0
+                ? await Promise.all(
+                      PIOUPIOU_STATION_IDS.map((id) =>
+                          fetch(`${b}/api/pioupiou/current?stationId=${encodeURIComponent(id)}`),
+                      ),
+                  )
+                : []
+
         apiStatus.value = {
             measurement: `${measRes.status} ${measRes.statusText}`,
             windStations: `${windRes.status} ${windRes.statusText}`,
@@ -153,6 +170,10 @@ async function fetchAll() {
             weathercloud:
                 weathercloudResponses.length > 0
                     ? weathercloudResponses.map((r) => `${r.status}`).join(', ')
+                    : 'skipped (rate limit)',
+            pioupiou:
+                pioupiouResponses.length > 0
+                    ? pioupiouResponses.map((r) => `${r.status}`).join(', ')
                     : 'skipped (rate limit)',
             pws29: pwsRes29 ? `${pwsRes29.status} ${pwsRes29.statusText}` : 'skipped (error backoff)',
             pwsIsarnt1: pwsResIsarnt1 ? `${pwsResIsarnt1.status} ${pwsResIsarnt1.statusText}` : 'skipped (error backoff)',
@@ -189,6 +210,22 @@ async function fetchAll() {
                 weathercloudBackoffUntil = Date.now() + WEATHERCLOUD_ERROR_BACKOFF_MS
             } else {
                 weathercloudBackoffUntil = Date.now() + WEATHERCLOUD_POLL_MS
+            }
+        }
+        if (runPioupiou && pioupiouResponses.length > 0) {
+            const next = { ...pioupiouByStationId.value }
+            for (let i = 0; i < pioupiouResponses.length; i++) {
+                const res = pioupiouResponses[i]!
+                const id = PIOUPIOU_STATION_IDS[i]!
+                if (res.ok) {
+                    next[id] = await res.json()
+                }
+            }
+            pioupiouByStationId.value = next
+            if (!pioupiouResponses.some((r) => r.ok)) {
+                pioupiouBackoffUntil = Date.now() + PIOUPIOU_ERROR_BACKOFF_MS
+            } else {
+                pioupiouBackoffUntil = Date.now() + PIOUPIOU_POLL_MS
             }
         }
         if (satteleRes.ok) weatherlinkSattele.value = await satteleRes.json()
