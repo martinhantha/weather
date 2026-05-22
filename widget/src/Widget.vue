@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import type { ICondition, IStationConfig } from '../../types'
 import FoehnPressureChart from './FoehnPressureChart.vue'
 import WindStationGrid from '../../shared/components/WindStationGrid'
-import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS } from '../../shared/stations'
+import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS, SOUTH_TIROL_POLL_MS } from '../../shared/stations'
 
 const props = withDefaults(
     defineProps<{ apiUrl: string; debug?: boolean }>(),
@@ -111,6 +111,8 @@ let weathercloudBackoffUntil = 0
 const PIOUPIOU_POLL_MS = 60_000
 const PIOUPIOU_ERROR_BACKOFF_MS = 300_000
 let pioupiouBackoffUntil = 0
+const SOUTH_TIROL_ERROR_BACKOFF_MS = 300_000
+let southTyrolBackoffUntil = 0
 
 async function fetchAll() {
     const b = base()
@@ -127,14 +129,18 @@ async function fetchAll() {
         const runPws = now >= pwsBackoffUntil
         const runWeathercloud = now >= weathercloudBackoffUntil
         const runPioupiou = now >= pioupiouBackoffUntil
+        const runSouthTyrol = now >= southTyrolBackoffUntil
 
-        const [measRes, windRes, southRes, satteleRes, pichlbergRes] = await Promise.all([
+        const [measRes, windRes, satteleRes, pichlbergRes] = await Promise.all([
             fetch(`${b}/api/measurement`),
             fetch(`${b}/api/wind-stations`),
-            fetch(`${b}/api/southtyrol/sensors?station_codes=${SOUTH_TIROL_CODES}`),
             fetch(`${b}/api/weatherlink/current?stationId=92575`),
             fetch(`${b}/api/weatherlink/current?stationId=33570`),
         ])
+
+        const southRes = runSouthTyrol
+            ? await fetch(`${b}/api/southtyrol/sensors?station_codes=${SOUTH_TIROL_CODES}`)
+            : null
 
         let pwsRes29: Response | null = null
         let pwsResIsarnt1: Response | null = null
@@ -166,7 +172,7 @@ async function fetchAll() {
         apiStatus.value = {
             measurement: `${measRes.status} ${measRes.statusText}`,
             windStations: `${windRes.status} ${windRes.statusText}`,
-            southtyrol: `${southRes.status} ${southRes.statusText}`,
+            southtyrol: southRes ? `${southRes.status} ${southRes.statusText}` : 'skipped (cached poll)',
             weathercloud:
                 weathercloudResponses.length > 0
                     ? weathercloudResponses.map((r) => `${r.status}`).join(', ')
@@ -183,9 +189,14 @@ async function fetchAll() {
         if (props.debug) log(JSON.stringify(apiStatus.value))
         if (measRes.ok) measurement.value = await measRes.json()
         if (windRes.ok) windStations.value = await windRes.json()
-        if (southRes.ok) {
-            const data = await southRes.json()
-            southTyrol.value = data
+        if (southRes) {
+            if (southRes.ok) {
+                const data = await southRes.json()
+                southTyrol.value = data
+                southTyrolBackoffUntil = Date.now() + SOUTH_TIROL_POLL_MS
+            } else {
+                southTyrolBackoffUntil = Date.now() + SOUTH_TIROL_ERROR_BACKOFF_MS
+            }
         }
         if (pwsRes29?.ok) pwsData.value = await pwsRes29.json()
         if (pwsResIsarnt1?.ok) pwsDataIsarnt1.value = await pwsResIsarnt1.json()

@@ -4,7 +4,7 @@ import { useMeasurement } from '~/composables/measurment'
 import type { IWeatherData, IMeasurement, IStationConfig, ICondition, INormalizedSouthTyrolStation } from '~/types'
 
 import WindStationGrid from '~/shared/components/WindStationGrid'
-import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS } from '~/shared/stations'
+import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS, SOUTH_TIROL_POLL_MS } from '~/shared/stations'
 import { windSpeedColor as windSpeedColorShared, windSpeedColorHex, windDirDeg } from '~/shared/windDisplay'
 
 const SOUTH_TIROL_CODES = getSouthTyrolCodes()
@@ -177,6 +177,7 @@ watch(selectedStationId, () => update(), { immediate: false })
 
 let fastTimer: ReturnType<typeof setInterval> | null = null
 let slowTimer: ReturnType<typeof setInterval> | null = null
+let southTyrolTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
     fastTimer = setInterval(async () => {
@@ -185,7 +186,6 @@ onMounted(() => {
         await update()
     }, 2000)
     slowTimer = setInterval(async () => {
-        refreshSouthTyrol()
         refreshWeatherlinkSattele()
         refreshWeathercloud()
         refreshPioupiou()
@@ -206,11 +206,13 @@ onMounted(() => {
             pwsBackoffUntil.value = 0
         }
     }, 60 * 1000)
+    southTyrolTimer = setInterval(() => refreshSouthTyrol(), SOUTH_TIROL_POLL_MS)
 })
 
 onBeforeUnmount(() => {
     if (fastTimer != null) { clearInterval(fastTimer); fastTimer = null }
     if (slowTimer != null) { clearInterval(slowTimer); slowTimer = null }
+    if (southTyrolTimer != null) { clearInterval(southTyrolTimer); southTyrolTimer = null }
 })
 
 </script>

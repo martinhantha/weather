@@ -43,3 +43,6 @@ export function getSouthTyrolCodes(): string {
 		.join(',')
 }
 
+/** Client poll interval for South Tyrol sensors (Buergernetz updates slowly). */
+export const SOUTH_TIROL_POLL_MS = 5 * 60 * 1000
+
