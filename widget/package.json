@@ -3,7 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prebuild": "node ./node_modules/esbuild/install.js",
     "build": "vite build",
     "dev": "vite"
   },

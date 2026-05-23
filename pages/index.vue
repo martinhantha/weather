@@ -5,7 +5,7 @@ import type { IWeatherData, IMeasurement, IStationConfig, ICondition, INormalize
 
 import WindStationGrid from '~/shared/components/WindStationGrid'
 import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS, SOUTH_TIROL_POLL_MS } from '~/shared/stations'
-import { windSpeedColor as windSpeedColorShared, windSpeedColorHex, windDirDeg } from '~/shared/windDisplay'
+import { formatWindSpeed, windSpeedColor as windSpeedColorShared, windSpeedColorHex, windDirDeg } from '~/shared/windDisplay'
 
 const SOUTH_TIROL_CODES = getSouthTyrolCodes()
 
@@ -402,7 +402,7 @@ onBeforeUnmount(() => {
                             Aktuell
                         </dt>
                         <dd class="font-semibold">
-                            <span :class="windSpeedColor(selectedCondition.wind_speed_last)">{{ selectedCondition.wind_speed_last ?? '—' }}</span><span class="text-xs text-gray-600"> km/h</span>
+                            <span :class="windSpeedColor(selectedCondition.wind_speed_last)">{{ formatWindSpeed(selectedCondition.wind_speed_last) }}</span><span class="text-xs text-gray-600"> km/h</span>
                         </dd>
                     </div>
                     <div class="space-y-0.5 rounded-lg bg-gray-50 p-3">
@@ -410,7 +410,7 @@ onBeforeUnmount(() => {
                             10′ Ø
                         </dt>
                         <dd class="font-semibold text-gray-900">
-                            {{ selectedCondition.wind_speed_avg_last_10_min ?? '—' }} <span class="text-xs text-gray-600">km/h</span>
+                            {{ formatWindSpeed(selectedCondition.wind_speed_avg_last_10_min) }} <span class="text-xs text-gray-600">km/h</span>
                         </dd>
                     </div>
                     <div class="space-y-0.5 rounded-lg bg-gray-50 p-3">
@@ -418,7 +418,7 @@ onBeforeUnmount(() => {
                             10′ max
                         </dt>
                         <dd class="font-semibold">
-                            <span :class="windSpeedColor(selectedCondition.wind_speed_hi_last_10_min)">{{ selectedCondition.wind_speed_hi_last_10_min ?? '—' }}</span><span class="text-xs text-gray-600"> km/h</span>
+                            <span :class="windSpeedColor(selectedCondition.wind_speed_hi_last_10_min)">{{ formatWindSpeed(selectedCondition.wind_speed_hi_last_10_min) }}</span><span class="text-xs text-gray-600"> km/h</span>
                         </dd>
                     </div>
                     <div class="space-y-0.5 rounded-lg bg-gray-50 p-3">

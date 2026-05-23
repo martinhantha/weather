@@ -1,6 +1,6 @@
 import { Fragment, type PropType, h, defineComponent } from 'vue'
 import type { ICondition, IStationConfig } from '../../types'
-import { degToDir, windDirDeg, windSpeedColor, windSpeedColorHex } from '../windDisplay'
+import { degToDir, formatWindSpeed, windDirDeg, windSpeedColor, windSpeedColorHex } from '../windDisplay'
 
 type StationData = { ts: number; condition: Partial<ICondition> }
 
@@ -118,7 +118,7 @@ export default defineComponent({
 													'span',
 													{ class: windSpeedColor(cond.wind_speed_last, 'page') },
 													[
-														h('span', { class: 'font-semibold' }, cond.wind_speed_last ?? '—'),
+														h('span', { class: 'font-semibold' }, formatWindSpeed(cond.wind_speed_last)),
 														h('span', { class: 'text-xs text-gray-600' }, ' km/h'),
 													]
 												),
@@ -127,13 +127,13 @@ export default defineComponent({
 													'span',
 													{ class: windSpeedColor(cond.wind_speed_hi_last_10_min, 'page') },
 													[
-														h('span', { class: 'font-semibold' }, cond.wind_speed_hi_last_10_min ?? '—'),
+														h('span', { class: 'font-semibold' }, formatWindSpeed(cond.wind_speed_hi_last_10_min)),
 														h('span', { class: 'text-xs text-gray-600' }, " km/h 10′ max"),
 													]
 												),
 												h('span', { class: 'hidden text-gray-300 sm:inline' }, '·'),
 												h('span', { class: 'text-gray-600' }, [
-													h('span', null, cond.wind_speed_avg_last_10_min ?? '—'),
+													h('span', null, formatWindSpeed(cond.wind_speed_avg_last_10_min)),
 													h('span', { class: 'text-xs text-gray-600' }, " km/h 10′ Ø"),
 												]),
 											]),
@@ -198,15 +198,15 @@ export default defineComponent({
 									h('div', { class: 'w-card-bottom' }, [
 										h('div', { class: 'w-winds' }, [
 											h('span', { class: windSpeedColor(cond.wind_speed_last, 'widget') }, [
-												h('strong', null, cond.wind_speed_last ?? '—'),
+												h('strong', null, formatWindSpeed(cond.wind_speed_last)),
 												h('span', { class: 'w-wind-unit-small' }, ' km/h'),
 											]),
 											h('span', { class: windSpeedColor(cond.wind_speed_hi_last_10_min, 'widget') }, [
-												h('strong', null, cond.wind_speed_hi_last_10_min ?? '—'),
+												h('strong', null, formatWindSpeed(cond.wind_speed_hi_last_10_min)),
 												h('span', { class: 'w-wind-unit-small' }, " km/h 10′ max"),
 											]),
 											h('span', { class: 'w-avg' }, [
-												h('strong', null, cond.wind_speed_avg_last_10_min ?? '—'),
+												h('strong', null, formatWindSpeed(cond.wind_speed_avg_last_10_min)),
 												h('span', { class: 'w-wind-unit-small' }, " km/h 10′ Ø"),
 											]),
 										]),

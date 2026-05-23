@@ -1,5 +1,13 @@
 import type { ICondition } from '../types'
 
+/** Wind speed for display: whole km/h, no decimals (avoids de-AT comma formatting). */
+export function formatWindSpeed(speed: number | null | undefined): string {
+	if (speed == null) return '—'
+	const n = Number(speed)
+	if (!Number.isFinite(n)) return '—'
+	return String(Math.round(n))
+}
+
 export function degToDir(deg: number): string {
 	const number = Math.round(deg / 22.5 + 0.5)
 	const directions = ['N', 'NNO', 'NO', 'ONO', 'O', 'OSO', 'SO', 'SSO', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
