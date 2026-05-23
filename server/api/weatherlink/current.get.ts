@@ -7,6 +7,27 @@ import type { ICondition } from '~/types'
 
 const WL_URL = 'https://api.weatherlink.com/v2/current'
 
+const CACHE_TTL_MS = Number(process.env.WEATHERLINK_CURRENT_CACHE_TTL_MS) || 60_000
+const ERROR_CACHE_TTL_MS = Number(process.env.WEATHERLINK_CURRENT_ERROR_CACHE_TTL_MS) || 300_000
+
+function getCacheKey(stationId: string) {
+	return `weatherlink-current:${stationId}`
+}
+
+type WeatherlinkFetchResult =
+	| { status: 200; data: { ts: number; condition: Partial<ICondition> } }
+	| { status: number; data: Record<string, unknown> }
+
+const cacheMap = ((globalThis as any).__weatherlinkCurrentCache ??= new Map<
+	string,
+	{ expiresAt: number; result: WeatherlinkFetchResult }
+>()) as Map<string, { expiresAt: number; result: WeatherlinkFetchResult }>
+
+const inflightMap = ((globalThis as any).__weatherlinkCurrentInflight ??= new Map<
+	string,
+	Promise<WeatherlinkFetchResult>
+>()) as Map<string, Promise<WeatherlinkFetchResult>>
+
 function mphToKmh(num: number): number {
 	return Math.round(Number(num) * 1.609344)
 }
@@ -113,40 +134,76 @@ export default defineEventHandler(async (event) => {
 
 	const query = getQuery(event)
 	const stationId = (query.stationId as string) || '92575'
+	const cacheKey = getCacheKey(stationId)
+	const now = Date.now()
 
-	// Prefer v2 auth: api-key in query + X-Api-Secret header
-	const url = `${WL_URL}/${stationId}?api-key=${encodeURIComponent(apiKey)}`
+	const cached = cacheMap.get(cacheKey)
+	if (cached && cached.expiresAt > now) {
+		setResponseStatus(event, cached.result.status)
+		return cached.result.data
+	}
 
-	try {
-		let data: WlResponse
+	const inflight = inflightMap.get(cacheKey)
+	if (inflight) {
+		const res = await inflight
+		setResponseStatus(event, res.status)
+		return res.data
+	}
+
+	const promise = (async (): Promise<WeatherlinkFetchResult> => {
+		// Prefer v2 auth: api-key in query + X-Api-Secret header
+		const url = `${WL_URL}/${stationId}?api-key=${encodeURIComponent(apiKey)}`
+
 		try {
-			data = await $fetch<WlResponse>(url, {
-				headers: {
-					'X-Api-Secret': apiSecret,
-				},
-			})
-		} catch {
-			// Fallback: legacy signature auth (PHP-style)
-			const t = Math.floor(Date.now() / 1000)
-			const params: Record<string, string> = {
-				'api-key': apiKey,
-				'station-id': stationId,
-				t: String(t),
+			let data: WlResponse
+			try {
+				data = await $fetch<WlResponse>(url, {
+					headers: {
+						'X-Api-Secret': apiSecret,
+					},
+				})
+			} catch {
+				// Fallback: legacy signature auth (PHP-style)
+				const t = Math.floor(Date.now() / 1000)
+				const params: Record<string, string> = {
+					'api-key': apiKey,
+					'station-id': stationId,
+					t: String(t),
+				}
+				const apiSignature = sign(apiSecret, params)
+				const urlLegacy = `${WL_URL}/${stationId}?api-key=${encodeURIComponent(apiKey)}&api-signature=${apiSignature}&t=${t}`
+				data = await $fetch<WlResponse>(urlLegacy)
 			}
-			const apiSignature = sign(apiSecret, params)
-			const urlLegacy = `${WL_URL}/${stationId}?api-key=${encodeURIComponent(apiKey)}&api-signature=${apiSignature}&t=${t}`
-			data = await $fetch<WlResponse>(urlLegacy)
+			const sensors = data?.sensors || []
+			const result = pickFirstCondition(sensors)
+			if (!result) {
+				return {
+					status: 404,
+					data: { error: 'No current conditions', stationId },
+				}
+			}
+			return { status: 200, data: result }
+		} catch (e: any) {
+			console.error('WeatherLink fetch failed:', e?.message || e)
+			return {
+				status: 502,
+				data: {
+					error: 'WeatherLink API unavailable',
+					stationId,
+					detail: e?.data?.message || e?.message,
+				},
+			}
 		}
-		const sensors = data?.sensors || []
-		const result = pickFirstCondition(sensors)
-		if (!result) {
-			setResponseStatus(event, 404)
-			return { error: 'No current conditions', stationId }
-		}
-		return result
-	} catch (e: any) {
-		console.error('WeatherLink fetch failed:', e?.message || e)
-		setResponseStatus(event, 502)
-		return { error: 'WeatherLink API unavailable', stationId, detail: e?.data?.message || e?.message }
+	})()
+
+	inflightMap.set(cacheKey, promise)
+	try {
+		const res = await promise
+		const ttl = res.status === 200 ? CACHE_TTL_MS : ERROR_CACHE_TTL_MS
+		cacheMap.set(cacheKey, { expiresAt: now + ttl, result: res })
+		setResponseStatus(event, res.status)
+		return res.data
+	} finally {
+		inflightMap.delete(cacheKey)
 	}
 })

@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import type { ICondition, IStationConfig } from '../../types'
 import FoehnPressureChart from './FoehnPressureChart.vue'
 import WindStationGrid from '../../shared/components/WindStationGrid'
-import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS, SOUTH_TIROL_POLL_MS } from '../../shared/stations'
+import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS, SOUTH_TIROL_POLL_MS, WEATHERLINK_PICHLBERG_POLL_MS } from '../../shared/stations'
 
 const props = withDefaults(
     defineProps<{ apiUrl: string; debug?: boolean }>(),
@@ -111,6 +111,8 @@ let weathercloudBackoffUntil = 0
 const PIOUPIOU_POLL_MS = 60_000
 const PIOUPIOU_ERROR_BACKOFF_MS = 300_000
 let pioupiouBackoffUntil = 0
+const PICHLBERG_WEATHERLINK_ERROR_BACKOFF_MS = 300_000
+let pichlbergWeatherlinkBackoffUntil = 0
 const SOUTH_TIROL_ERROR_BACKOFF_MS = 300_000
 let southTyrolBackoffUntil = 0
 
@@ -129,13 +131,16 @@ async function fetchAll() {
         const runPws = now >= pwsBackoffUntil
         const runWeathercloud = now >= weathercloudBackoffUntil
         const runPioupiou = now >= pioupiouBackoffUntil
+        const runPichlbergWeatherlink = now >= pichlbergWeatherlinkBackoffUntil
         const runSouthTyrol = now >= southTyrolBackoffUntil
 
         const [measRes, windRes, satteleRes, pichlbergRes] = await Promise.all([
             fetch(`${b}/api/measurement`),
             fetch(`${b}/api/wind-stations`),
             fetch(`${b}/api/weatherlink/current?stationId=92575`),
-            fetch(`${b}/api/weatherlink/current?stationId=33570`),
+            runPichlbergWeatherlink
+                ? fetch(`${b}/api/weatherlink/current?stationId=33570`)
+                : Promise.resolve(null),
         ])
 
         const southRes = runSouthTyrol
@@ -184,7 +189,9 @@ async function fetchAll() {
             pws29: pwsRes29 ? `${pwsRes29.status} ${pwsRes29.statusText}` : 'skipped (error backoff)',
             pwsIsarnt1: pwsResIsarnt1 ? `${pwsResIsarnt1.status} ${pwsResIsarnt1.statusText}` : 'skipped (error backoff)',
             weatherlinkSattele: `${satteleRes.status} ${satteleRes.statusText}`,
-            weatherlinkPichlberg: `${pichlbergRes.status} ${pichlbergRes.statusText}`,
+            weatherlinkPichlberg: pichlbergRes
+                ? `${pichlbergRes.status} ${pichlbergRes.statusText}`
+                : 'skipped (rate limit)',
         }
         if (props.debug) log(JSON.stringify(apiStatus.value))
         if (measRes.ok) measurement.value = await measRes.json()
@@ -240,7 +247,14 @@ async function fetchAll() {
             }
         }
         if (satteleRes.ok) weatherlinkSattele.value = await satteleRes.json()
-        if (pichlbergRes.ok) weatherlinkPichlberg.value = await pichlbergRes.json()
+        if (pichlbergRes) {
+            if (pichlbergRes.ok) {
+                weatherlinkPichlberg.value = await pichlbergRes.json()
+                pichlbergWeatherlinkBackoffUntil = Date.now() + WEATHERLINK_PICHLBERG_POLL_MS
+            } else {
+                pichlbergWeatherlinkBackoffUntil = Date.now() + PICHLBERG_WEATHERLINK_ERROR_BACKOFF_MS
+            }
+        }
     } catch (e: any) {
         error.value = e?.message || 'Failed to load data'
         if (props.debug) log(`error: ${error.value}`)

@@ -46,3 +46,6 @@ export function getSouthTyrolCodes(): string {
 /** Client poll interval for South Tyrol sensors (Buergernetz updates slowly). */
 export const SOUTH_TIROL_POLL_MS = 5 * 60 * 1000
 
+/** Pichlberg WeatherLink direct poll (DB / wind-stations still refresh every 2s). */
+export const WEATHERLINK_PICHLBERG_POLL_MS = 60_000
+
