@@ -1,11 +1,17 @@
 import { Fragment, type PropType, h, defineComponent } from 'vue'
 import type { ICondition, IStationConfig } from '../../types'
+import { STATION_MAX_AGE_SEC } from '../stations'
 import { degToDir, formatWindSpeed, windDirDeg, windSpeedColor, windSpeedColorHex } from '../windDisplay'
 
 type StationData = { ts: number; condition: Partial<ICondition> }
 
 function formatTime(ts: number) {
 	return new Date(ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+}
+
+function isFresh(data: StationData | null): data is StationData {
+	if (!data?.ts) return false
+	return Date.now() / 1000 - data.ts <= STATION_MAX_AGE_SEC
 }
 
 export default defineComponent({
@@ -44,9 +50,9 @@ export default defineComponent({
 				null,
 				props.stations.flatMap((station) => {
 					const data = props.getStationData(station)
-					if (props.variant === 'page') {
-						if (!data) return []
+					if (!isFresh(data)) return []
 
+					if (props.variant === 'page') {
 						const cond = data.condition
 						const isSelected = props.selectedStationId === station.id
 
@@ -151,7 +157,6 @@ export default defineComponent({
 					}
 
 					// widget
-					if (!data) return []
 					const cond = data.condition
 
 					const tempNode =

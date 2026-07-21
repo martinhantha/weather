@@ -49,3 +49,6 @@ export const SOUTH_TIROL_POLL_MS = 5 * 60 * 1000
 /** Pichlberg WeatherLink direct poll (DB / wind-stations still refresh every 2s). */
 export const WEATHERLINK_PICHLBERG_POLL_MS = 60_000
 
+/** Hide stations whose measurement timestamp is older than this (seconds). */
+export const STATION_MAX_AGE_SEC = 2 * 60 * 60
+
