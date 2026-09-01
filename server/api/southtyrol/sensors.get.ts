@@ -3,9 +3,12 @@
  * Query: station_code (single) or station_codes (comma-separated).
  * Returns normalized object(s) compatible with frontend (same shape as WeatherLink condition).
  * Responses are cached (default 5 min) to limit upstream requests.
+ *
+ * daten.buergernetz.bz.it/services/meteo/v1/* is deprecated; use geoservices host
+ * (see data.civis.bz.it dataset misure-meteo-e-idrografiche).
  */
 
-const SOUTH_TIROL_SENSORS_URL = 'http://daten.buergernetz.bz.it/services/meteo/v1/sensors'
+const SOUTH_TIROL_SENSORS_URL = 'https://geoservices.buergernetz.bz.it/services/meteo/v1/sensors'
 
 const CACHE_TTL_MS = Number(process.env.SOUTH_TIROL_SENSORS_CACHE_TTL_MS) || 300_000
 const ERROR_CACHE_TTL_MS = Number(process.env.SOUTH_TIROL_SENSORS_ERROR_CACHE_TTL_MS) || 300_000

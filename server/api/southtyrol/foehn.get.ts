@@ -3,7 +3,8 @@
  * Query: lang (de | it | en). Returns JSON with contents[0].imageUrl for the diagram image.
  */
 
-const FOEHN_URL = 'http://daten.buergernetz.bz.it/services/weather/foehn'
+/** Buergernetz URL deprecated; see data.civis.bz.it dataset southtyrolean-weatherservice-foehndiagram */
+const FOEHN_URL = 'https://weather.services.siag.it/api/v2/contents/foehn'
 
 export default defineEventHandler(async (event) => {
 	const query = getQuery(event)
