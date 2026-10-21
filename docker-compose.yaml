@@ -36,3 +36,9 @@ services:
       - FOEHN_DIFF_ERROR_CACHE_TTL_MS=${FOEHN_DIFF_ERROR_CACHE_TTL_MS:-900000}
       - OPEN_METEO_REQUEST_GAP_MS=${OPEN_METEO_REQUEST_GAP_MS:-400}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
