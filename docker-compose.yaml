@@ -3,8 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
+    # Do not bind host port 3000 — Coolify/Traefik routes to the container on the internal network.
+    # In Coolify: set the app domain and expose port 3000 on the `app` service.
+    expose:
+      - "3000"
     environment:
       # MongoDB – Option 1: Connection URI (mongoose, Node)
       - MONGODB_URI=${MONGODB_URI}
