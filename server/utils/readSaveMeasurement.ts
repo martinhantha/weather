@@ -10,7 +10,11 @@ function internalApiBase(): string {
 }
 
 export async function readSaveMeasurement(): Promise<{ ok: boolean; error?: string }> {
-	const sourceUrl = 'http://89.190.166.17:8081/v1/current_conditions'
+	// Direct station URL is only reachable from 45.144.187.11.
+	// Elsewhere set PICHBERG_SOURCE_URL to the PHP proxy on that host (pichlberg.php).
+	const sourceUrl =
+		process.env.PICHBERG_SOURCE_URL?.trim() ||
+		'http://89.190.166.17:8081/v1/current_conditions'
 
 	const raw = await $fetch(sourceUrl).catch((error: unknown) => {
 		console.error('[readSaveMeasurement] fetch failed:', (error as { data?: unknown })?.data ?? error)

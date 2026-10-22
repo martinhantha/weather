@@ -19,6 +19,7 @@ services:
       # App
       - API_URL=${API_URL}
       - API_SECRET=${API_SECRET}
+      - PICHBERG_SOURCE_URL=${PICHBERG_SOURCE_URL:-}
       - CRON_SECRET=${CRON_SECRET}
       # External weather APIs
       - WEATHER_COM_API_KEY=${WEATHER_COM_API_KEY}
