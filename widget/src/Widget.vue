@@ -134,12 +134,16 @@ async function fetchAll() {
         const runPichlbergWeatherlink = now >= pichlbergWeatherlinkBackoffUntil
         const runSouthTyrol = now >= southTyrolBackoffUntil
 
+        const fetchOrFail = (url: string, ms?: number) =>
+            fetch(url, ms ? { signal: AbortSignal.timeout(ms) } : undefined).catch(
+                () => new Response(null, { status: 504, statusText: 'timeout' }),
+            )
         const [measRes, windRes, satteleRes, pichlbergRes] = await Promise.all([
-            fetch(`${b}/api/measurement`),
-            fetch(`${b}/api/wind-stations`),
-            fetch(`${b}/api/weatherlink/current?stationId=92575`),
+            fetchOrFail(`${b}/api/measurement`),
+            fetchOrFail(`${b}/api/wind-stations`, 8000),
+            fetchOrFail(`${b}/api/weatherlink/current?stationId=92575`),
             runPichlbergWeatherlink
-                ? fetch(`${b}/api/weatherlink/current?stationId=33570`)
+                ? fetchOrFail(`${b}/api/weatherlink/current?stationId=33570`, 8000)
                 : Promise.resolve(null),
         ])
 

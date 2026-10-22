@@ -11,7 +11,8 @@ export default defineTask({
 	async run() {
 		const result = await readSaveMeasurement()
 		if (!result.ok) {
-			throw new Error(result.error ?? 'readSaveMeasurement failed')
+			console.error('[pichlberg] ' + (result.error ?? 'readSaveMeasurement failed'))
+			return { result: 'unavailable' }
 		}
 		return { result: 'ok' }
 	},

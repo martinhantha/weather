@@ -9,8 +9,8 @@ import { formatWindSpeed, windSpeedColor as windSpeedColorShared, windSpeedColor
 
 const SOUTH_TIROL_CODES = getSouthTyrolCodes()
 
-const { data, refresh } = await useFetch('/api/measurement')
-const { data: windStationsData, refresh: refreshWindStations } = await useFetch<Record<string, { station_id: string; ts: number; condition: Partial<ICondition> }>>('/api/wind-stations')
+const { data, refresh } = await useFetch('/api/measurement', { timeout: 8000 })
+const { data: windStationsData, refresh: refreshWindStations } = await useFetch<Record<string, { station_id: string; ts: number; condition: Partial<ICondition> }>>('/api/wind-stations', { timeout: 8000 })
 const { data: southTyrolData, refresh: refreshSouthTyrol } = await useFetch<Record<string, INormalizedSouthTyrolStation>>(
     `/api/southtyrol/sensors?station_codes=${SOUTH_TIROL_CODES}`
 )
@@ -25,7 +25,7 @@ const { data: pwsDataIsarnt1, error: pwsErrorIsarnt1, refresh: refreshPwsIsarnt1
 const pwsBackoffUntil = ref(0)
 const PWS_CLIENT_ERROR_BACKOFF_MS = 300_000
 const { data: weatherlinkSatteleData, refresh: refreshWeatherlinkSattele } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/weatherlink/current?stationId=92575')
-const { data: weatherlinkPichlbergData } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/weatherlink/current?stationId=33570')
+const { data: weatherlinkPichlbergData } = await useFetch<{ ts: number; condition: Partial<ICondition> }>('/api/weatherlink/current?stationId=33570', { timeout: 8000 })
 const { data: weathercloudByDeviceId, refresh: refreshWeathercloud } = await useAsyncData(
     'weathercloud-all',
     async () => {
@@ -149,8 +149,26 @@ const selectedStationName = computed(() =>
     STATIONS.find((s) => s.id === selectedStationId.value)?.name ?? '–'
 )
 
+/** Once the user picks a station, keep it even if Pichlberg has no live data. */
+let stationChoiceLocked = false
+
 function selectStation(stationId: string) {
+    stationChoiceLocked = true
     selectedStationId.value = stationId
+}
+
+/** Pichlberg is the default. If it has no data, show the first station that does. */
+function ensureSelectedStation() {
+    if (stationChoiceLocked) return
+    const current = STATIONS.find((s) => s.id === selectedStationId.value)
+    if (current && getStationData(current)) {
+        stationChoiceLocked = true
+        return
+    }
+    const next = STATIONS.find((s) => getStationData(s))
+    if (!next) return
+    selectedStationId.value = next.id
+    stationChoiceLocked = true
 }
 
 function update() {
@@ -169,9 +187,12 @@ function update() {
 }
 
 await refresh()
+ensureSelectedStation()
 await update()
 if (southTyrolData.value === null) await refreshSouthTyrol()
 if (windStationsData.value === null) await refreshWindStations()
+ensureSelectedStation()
+await update()
 
 watch(selectedStationId, () => update(), { immediate: false })
 
@@ -183,6 +204,7 @@ onMounted(() => {
     fastTimer = setInterval(async () => {
         await refresh()
         await refreshWindStations()
+        ensureSelectedStation()
         await update()
     }, 2000)
     slowTimer = setInterval(async () => {

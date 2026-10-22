@@ -31,6 +31,8 @@ export default defineNitroPlugin(async () => {
                 inFlight = true
                 try {
                     await readSaveMeasurement()
+                } catch (err) {
+                    console.error('[scheduler] Pichlberg poll failed:', err instanceof Error ? err.message : err)
                 } finally {
                     inFlight = false
                 }

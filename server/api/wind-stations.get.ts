@@ -45,27 +45,42 @@ export default defineEventHandler(async (event): Promise<WindStationsOut> => {
 		}
 	}
 
-	// No DB data: try canonical API, then WeatherLink for Pichlberg
+	// No DB data: ask another deployment once, then WeatherLink.
+	// Skip our own host. Calling this route on ourselves loops while Pichlberg is down and the page never renders.
 	const config = useRuntimeConfig()
 	const apiUrl = (config.public?.apiUrl as string)?.trim()
+	const isFallbackHop = getRequestHeader(event, 'x-wind-stations-fallback') === '1'
+	const requestHost = (getRequestHeader(event, 'x-forwarded-host') || getRequestHeader(event, 'host') || '')
+		.split(',')[0]
+		.trim()
+	let apiIsSelf = false
 	if (apiUrl) {
 		try {
+			const host = new URL(apiUrl).host
+			apiIsSelf = host === requestHost || host.startsWith('127.0.0.1') || host.startsWith('localhost')
+		} catch {
+			apiIsSelf = true
+		}
+	}
+	if (!isFallbackHop && apiUrl && !apiIsSelf) {
+		try {
 			const fallback = await $fetch<WindStationsOut>(`${apiUrl.replace(/\/$/, '')}/api/wind-stations`, {
-				headers: { Accept: 'application/json' },
+				timeout: 5_000,
+				headers: { Accept: 'application/json', 'x-wind-stations-fallback': '1' },
 			})
 			if (fallback && typeof fallback === 'object' && Object.keys(fallback).length > 0) {
 				return fallback
 			}
 		} catch (_) {
-			// ignore
+			// canonical API down or this host calling itself; continue with WeatherLink
 		}
 	}
 
 	try {
-		const base = getRequestURL(event).origin
+		const port = event.node?.req?.socket?.localPort || process.env.PORT || process.env.NITRO_PORT || 3000
 		const wl = await $fetch<{ ts?: number; condition?: Partial<ICondition>; error?: string }>(
-			`${base}/api/weatherlink/current?stationId=33570`,
-			{ headers: { Accept: 'application/json' } }
+			`http://127.0.0.1:${port}/api/weatherlink/current?stationId=33570`,
+			{ timeout: 8_000, headers: { Accept: 'application/json' } }
 		)
 		if (wl?.ts != null && wl?.condition && typeof wl.condition === 'object') {
 			out['33570'] = { station_id: '33570', ts: wl.ts, condition: wl.condition }

@@ -158,6 +158,7 @@ export default defineEventHandler(async (event) => {
 			let data: WlResponse
 			try {
 				data = await $fetch<WlResponse>(url, {
+					timeout: 8_000,
 					headers: {
 						'X-Api-Secret': apiSecret,
 					},
@@ -172,7 +173,7 @@ export default defineEventHandler(async (event) => {
 				}
 				const apiSignature = sign(apiSecret, params)
 				const urlLegacy = `${WL_URL}/${stationId}?api-key=${encodeURIComponent(apiKey)}&api-signature=${apiSignature}&t=${t}`
-				data = await $fetch<WlResponse>(urlLegacy)
+				data = await $fetch<WlResponse>(urlLegacy, { timeout: 8_000 })
 			}
 			const sensors = data?.sensors || []
 			const result = pickFirstCondition(sensors)
