@@ -16,7 +16,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN addgroup --system nuxt && adduser --system nuxt --ingroup nuxt
+RUN apk add --no-cache curl \
+	&& addgroup --system nuxt && adduser --system nuxt --ingroup nuxt
 
 COPY --from=builder --chown=nuxt:nuxt /app/.output ./.output
 
