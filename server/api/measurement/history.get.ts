@@ -1,5 +1,6 @@
 import * as db from '../../utils/db'
 import type { H3Event } from 'h3'
+import { windDirDeg } from '../../../shared/windDisplay'
 
 const HOURS_24_SEC = 24 * 60 * 60
 const RECENT_MEASUREMENT_LIMIT = 400
@@ -8,6 +9,8 @@ type WindHistoryPoint = {
 	ts: number
 	max: number | null
 	average: number | null
+	/** Wind-from direction in degrees, already corrected for Pichlberg. */
+	dir: number | null
 }
 
 type WindHistoryResponse = {
@@ -17,6 +20,11 @@ type WindHistoryResponse = {
 }
 
 type WindHistoryFallbackResponse = WindHistoryResponse | { error: string }
+
+function directionDeg(condition: Record<string, unknown>): number | null {
+	const raw = Number(condition.wind_dir_scalar_avg_last_10_min ?? condition.wind_dir_last)
+	return Number.isFinite(raw) ? windDirDeg({ wind_dir_last: raw }, '33570') : null
+}
 
 function mphToKmh(value: unknown): number | null {
 	if (value == null) return null
@@ -83,6 +91,7 @@ export default defineEventHandler(async (event): Promise<WindHistoryFallbackResp
 				ts,
 				max: mphToKmh(condition.wind_speed_hi_last_10_min),
 				average: mphToKmh(condition.wind_speed_avg_last_10_min),
+				dir: directionDeg(condition),
 			})
 		}
 
@@ -90,6 +99,8 @@ export default defineEventHandler(async (event): Promise<WindHistoryFallbackResp
 		return { from, to, points }
 	} catch (err) {
 		console.error('[measurement/history] Failed to load wind history:', err)
+		const fallback = await loadConfiguredFallback(event)
+		if (fallback) return fallback
 		setResponseStatus(event, 500)
 		return { error: 'Failed to load wind history.' }
 	}

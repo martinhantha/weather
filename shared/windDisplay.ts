@@ -14,7 +14,7 @@ export function degToDir(deg: number): string {
 	return directions[number % 16]
 }
 
-function windSpeedBand(speed: number | null | undefined): 'gray' | 'green' | 'yellow' | 'orange' | 'red' | 'black' {
+export function windSpeedBand(speed: number | null | undefined): 'gray' | 'green' | 'yellow' | 'orange' | 'red' | 'black' {
 	if (speed == null) return 'gray'
 	if (speed <= 14) return 'green'
 	if (speed <= 25) return 'yellow'

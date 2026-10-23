@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { formatWindSpeed, windSpeedColor, windSpeedColorHex } from '~/shared/windDisplay'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { degToDir, formatWindSpeed, windSpeedBand, windSpeedColorHex } from '~/shared/windDisplay'
 
 export type WindHistoryPoint = {
 	ts: number
 	max: number | null
 	average: number | null
+	dir?: number | null
 }
 
 const props = defineProps<{
@@ -14,70 +15,142 @@ const props = defineProps<{
 	to: number
 }>()
 
-const chart = { width: 720, height: 250, left: 46, right: 12, top: 16, bottom: 34 }
-const plotWidth = chart.width - chart.left - chart.right
-const plotHeight = chart.height - chart.top - chart.bottom
+const SLOT_SEC = 10 * 60
+const slotWidth = 36
+const layout = { axisTop: 24, plotHeight: 230, axisGap: 6, arrowRow: 34, cellRow: 30, cellGap: 6, axisBottom: 24 }
+const plotTop = layout.axisTop
+const plotBottom = plotTop + layout.plotHeight
+const arrowTop = plotBottom + layout.axisGap
+const windTop = arrowTop + layout.arrowRow
+const gustTop = windTop + layout.cellRow + layout.cellGap
+const chartHeight = gustTop + layout.cellRow + layout.axisBottom
+
+/** Plot bands, same thresholds as windSpeedBand(). Above the last band the dark plot background shows. */
+const bands = [
+	{ from: 0, to: 14, color: '#a3dc8f' },
+	{ from: 14, to: 25, color: '#f3e98b' },
+	{ from: 25, to: 30, color: '#efb877' },
+	{ from: 30, to: 38, color: '#d9787a' },
+]
+
+const cellColors: Record<ReturnType<typeof windSpeedBand>, { bg: string; text: string }> = {
+	gray: { bg: 'transparent', text: '#6b7280' },
+	green: { bg: '#5cc75c', text: '#14301a' },
+	yellow: { bg: '#f2e34c', text: '#3b3305' },
+	orange: { bg: '#f5a23a', text: '#3f2404' },
+	red: { bg: '#e2524a', text: '#ffffff' },
+	black: { bg: '#1f1f1f', text: '#ffffff' },
+}
+
+type Slot = {
+	ts: number
+	x: number
+	max: number | null
+	average: number | null
+	dir: number | null
+}
+
+const slots = computed<Slot[]>(() => {
+	const start = Math.ceil(props.from / SLOT_SEC) * SLOT_SEC
+	const end = Math.floor(props.to / SLOT_SEC) * SLOT_SEC
+	const bySlot = new Map<number, WindHistoryPoint>()
+	for (const point of props.points) bySlot.set(Math.floor(point.ts / SLOT_SEC) * SLOT_SEC, point)
+
+	const result: Slot[] = []
+	for (let ts = start, index = 0; ts <= end; ts += SLOT_SEC, index++) {
+		const point = bySlot.get(ts)
+		result.push({
+			ts,
+			x: (index + 0.5) * slotWidth,
+			max: point?.max ?? null,
+			average: point?.average ?? null,
+			dir: point?.dir ?? null,
+		})
+	}
+	return result
+})
+
+const chartWidth = computed(() => slots.value.length * slotWidth)
 
 const maxSpeed = computed(() => {
 	const highest = Math.max(0, ...props.points.flatMap((point) => [point.max ?? 0, point.average ?? 0]))
-	return Math.max(10, Math.ceil(highest / 10) * 10)
+	return Math.max(60, Math.ceil((highest + 2) / 20) * 20)
 })
 
-const plottedPoints = computed(() => {
-	const duration = Math.max(1, props.to - props.from)
-	return props.points.map((point) => ({
-		...point,
-		x: chart.left + ((point.ts - props.from) / duration) * plotWidth,
-		yMax: point.max == null ? null : chart.top + (1 - point.max / maxSpeed.value) * plotHeight,
-		yAverage: point.average == null ? null : chart.top + (1 - point.average / maxSpeed.value) * plotHeight,
-	}))
+const speedTicks = computed(() => {
+	return Array.from({ length: maxSpeed.value / 20 + 1 }, (_, index) => index * 20)
 })
 
-const maxSegments = computed(() =>
-	plottedPoints.value.slice(1).flatMap((point, index) => {
-		const previous = plottedPoints.value[index]
-		if (previous?.yMax == null || point.yMax == null || point.max == null) return []
-		return [{
-			x1: previous.x,
-			y1: previous.yMax,
-			x2: point.x,
-			y2: point.yMax,
-			color: windSpeedColorHex(point.max),
-			ts: point.ts,
-			speed: point.max,
-		}]
-	})
+function y(speed: number) {
+	return plotBottom - (Math.min(speed, maxSpeed.value) / maxSpeed.value) * layout.plotHeight
+}
+
+const visibleBands = computed(() =>
+	bands
+		.filter((band) => band.from < maxSpeed.value)
+		.map((band) => ({ ...band, y: y(band.to), height: y(band.from) - y(band.to) }))
 )
 
-const averageSegments = computed(() =>
-	plottedPoints.value.slice(1).flatMap((point, index) => {
-		const previous = plottedPoints.value[index]
-		if (previous?.yAverage == null || point.yAverage == null || point.average == null) return []
-		return [{
-			x1: previous.x,
-			y1: previous.yAverage,
-			x2: point.x,
-			y2: point.yAverage,
-			color: windSpeedColorHex(point.average),
-			ts: point.ts,
-			speed: point.average,
-		}]
-	})
+/** SVG path that breaks at missing readings instead of bridging gaps. */
+function linePath(key: 'max' | 'average') {
+	let path = ''
+	let drawing = false
+	for (const slot of slots.value) {
+		const speed = slot[key]
+		if (speed == null) {
+			drawing = false
+			continue
+		}
+		path += `${drawing ? 'L' : 'M'}${slot.x},${y(speed)} `
+		drawing = true
+	}
+	return path.trim()
+}
+
+const gustPath = computed(() => linePath('max'))
+const averagePath = computed(() => linePath('average'))
+
+const hourTicks = computed(() =>
+	slots.value.filter((slot) => slot.ts % 3600 === 0).map((slot) => ({ ts: slot.ts, x: slot.x - slotWidth / 2 }))
 )
 
-const hourlyReadings = computed(() => {
-	const byHour = new Map<number, WindHistoryPoint>()
-	for (const point of props.points) byHour.set(Math.floor(point.ts / 3600), point)
+/** Highest gust per clock hour, shown when it is a local peak. */
+const peakLabels = computed(() => {
+	const byHour = new Map<number, { slot: Slot; index: number }>()
+	slots.value.forEach((slot, index) => {
+		if (slot.max == null) return
+		const hour = Math.floor(slot.ts / 3600)
+		const current = byHour.get(hour)
+		if (!current || slot.max > (current.slot.max ?? 0)) byHour.set(hour, { slot, index })
+	})
 	return [...byHour.values()]
+		.filter(({ slot, index }) => {
+			const previous = slots.value[index - 1]?.max ?? -1
+			const next = slots.value[index + 1]?.max ?? -1
+			return slot.max! >= previous && slot.max! >= next
+		})
+		.map(({ slot }) => slot)
 })
 
 function formatHour(ts: number) {
-	return new Date(ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+	return new Date(ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Vienna' })
 }
 
-function formatDateTime(ts: number) {
-	return new Date(ts * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })
+function slotTitle(slot: Slot) {
+	const direction = slot.dir == null ? '—' : degToDir(slot.dir)
+	return `${formatHour(slot.ts)} · Wind ${formatWindSpeed(slot.average)} · Böen ${formatWindSpeed(slot.max)} km/h · ${direction}`
 }
+
+const scroller = ref<HTMLElement | null>(null)
+
+function scrollToLatest() {
+	void nextTick(() => {
+		if (scroller.value) scroller.value.scrollLeft = scroller.value.scrollWidth
+	})
+}
+
+onMounted(scrollToLatest)
+watch(() => props.points, scrollToLatest)
 </script>
 
 <template>
@@ -85,16 +158,16 @@ function formatDateTime(ts: number) {
 		<header class="mb-4 flex flex-wrap items-start justify-between gap-3">
 			<div>
 				<h3 class="text-base font-semibold text-gray-900">Windverlauf – letzte 24 Stunden</h3>
-				<p class="mt-1 text-sm text-gray-500">Pichlberg · km/h · Messwerte etwa alle 10 Minuten</p>
+				<p class="mt-1 text-sm text-gray-500">Pichlberg · km/h · 10-Minuten-Werte</p>
 			</div>
-			<div class="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-				<span class="inline-flex items-center gap-2 text-gray-700">
-					<span class="h-0.5 w-5 bg-gray-500" aria-hidden="true"></span>
-					Maximalwind (10′)
+			<div class="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-700">
+				<span class="inline-flex items-center gap-2">
+					<span class="h-[3px] w-5 rounded bg-black" aria-hidden="true"></span>
+					Böen (10′ max)
 				</span>
-				<span class="inline-flex items-center gap-2 text-gray-700">
-					<span class="h-0.5 w-5 border-t-2 border-dashed border-gray-500" aria-hidden="true"></span>
-					Durchschnitt (10′)
+				<span class="inline-flex items-center gap-2">
+					<span class="h-px w-5 bg-black" aria-hidden="true"></span>
+					Wind (10′ Ø)
 				</span>
 			</div>
 		</header>
@@ -102,89 +175,120 @@ function formatDateTime(ts: number) {
 		<p v-if="points.length === 0" class="rounded-lg bg-gray-50 px-4 py-8 text-center text-sm text-gray-600">
 			Für die letzten 24 Stunden sind keine Windmesswerte vorhanden.
 		</p>
-		<template v-else>
-			<div class="overflow-x-auto">
+		<div v-else class="flex">
+			<div ref="scroller" class="min-w-0 flex-1 overflow-x-auto">
 				<svg
-					class="h-auto min-w-[520px] w-full"
-					:viewBox="`0 0 ${chart.width} ${chart.height}`"
+					:width="chartWidth"
+					:height="chartHeight"
+					:viewBox="`0 0 ${chartWidth} ${chartHeight}`"
+					class="block"
 					role="img"
-					aria-label="Winddiagramm mit maximaler und durchschnittlicher Windgeschwindigkeit der letzten 24 Stunden"
+					aria-label="Winddiagramm mit Böen, Durchschnittswind und Windrichtung der letzten 24 Stunden"
 				>
-					<g v-for="tick in [0, 0.25, 0.5, 0.75, 1]" :key="tick">
-						<line
-							:x1="chart.left"
-							:x2="chart.width - chart.right"
-							:y1="chart.top + tick * plotHeight"
-							:y2="chart.top + tick * plotHeight"
-							stroke="#e5e7eb"
-							stroke-width="1"
-						/>
-						<text
-							:x="chart.left - 8"
-							:y="chart.top + tick * plotHeight + 4"
-							text-anchor="end"
-							font-size="11"
-							fill="#6b7280"
-						>{{ Math.round(maxSpeed * (1 - tick)) }}</text>
-					</g>
-					<g v-for="tick in [0, 0.25, 0.5, 0.75, 1]" :key="`time-${tick}`">
-						<text
-							:x="chart.left + tick * plotWidth"
-							:y="chart.height - 8"
-							:text-anchor="tick === 0 ? 'start' : tick === 1 ? 'end' : 'middle'"
-							font-size="11"
-							fill="#6b7280"
-						>{{ formatHour(from + tick * (to - from)) }}</text>
-					</g>
+					<rect x="0" :y="plotTop" :width="chartWidth" :height="layout.plotHeight" fill="#616161" />
+					<rect
+						v-for="band in visibleBands"
+						:key="band.from"
+						x="0"
+						:y="band.y"
+						:width="chartWidth"
+						:height="band.height"
+						:fill="band.color"
+					/>
 					<line
-						v-for="(segment, index) in maxSegments"
-						:key="`max-${index}`"
-						:x1="segment.x1"
-						:y1="segment.y1"
-						:x2="segment.x2"
-						:y2="segment.y2"
-						:stroke="segment.color"
-						stroke-width="2.5"
-						stroke-linecap="round"
-					>
-						<title>{{ formatDateTime(segment.ts) }} · Max: {{ formatWindSpeed(segment.speed) }} km/h</title>
-					</line>
-					<line
-						v-for="(segment, index) in averageSegments"
-						:key="`average-${index}`"
-						:x1="segment.x1"
-						:y1="segment.y1"
-						:x2="segment.x2"
-						:y2="segment.y2"
-						:stroke="segment.color"
-						stroke-width="2"
-						stroke-dasharray="5 4"
-						stroke-linecap="round"
-					>
-						<title>{{ formatDateTime(segment.ts) }} · Durchschnitt: {{ formatWindSpeed(segment.speed) }} km/h</title>
-					</line>
+						v-for="tick in speedTicks"
+						:key="`grid-${tick}`"
+						x1="0"
+						:x2="chartWidth"
+						:y1="y(tick)"
+						:y2="y(tick)"
+						stroke="rgba(0,0,0,0.22)"
+					/>
+
+					<g v-for="tick in hourTicks" :key="tick.ts">
+						<line :x1="tick.x" :x2="tick.x" :y1="plotTop - 4" :y2="chartHeight - layout.axisBottom + 4" stroke="rgba(0,0,0,0.25)" />
+						<text :x="tick.x" :y="plotTop - 8" text-anchor="middle" font-size="12" fill="#374151">{{ formatHour(tick.ts) }}</text>
+						<text :x="tick.x" :y="chartHeight - 6" text-anchor="middle" font-size="12" fill="#374151">{{ formatHour(tick.ts) }}</text>
+					</g>
+
+					<path :d="averagePath" fill="none" stroke="#000" stroke-width="1.6" stroke-linejoin="round" />
+					<path :d="gustPath" fill="none" stroke="#000" stroke-width="3" stroke-linejoin="round" />
+					<template v-for="slot in slots" :key="`dots-${slot.ts}`">
+						<circle v-if="slot.average != null" :cx="slot.x" :cy="y(slot.average)" r="2.4" fill="#000" />
+						<circle v-if="slot.max != null" :cx="slot.x" :cy="y(slot.max)" r="3.2" fill="#000" />
+					</template>
+					<text
+						v-for="slot in peakLabels"
+						:key="`peak-${slot.ts}`"
+						:x="slot.x"
+						:y="y(slot.max!) - 9"
+						text-anchor="middle"
+						font-size="13"
+						font-weight="700"
+						fill="#000"
+						stroke="rgba(255,255,255,0.85)"
+						stroke-width="3"
+						paint-order="stroke"
+					>{{ formatWindSpeed(slot.max) }}</text>
+
+					<g v-for="slot in slots" :key="slot.ts">
+						<g
+							v-if="slot.dir != null"
+							:transform="`translate(${slot.x} ${arrowTop + layout.arrowRow / 2}) rotate(${(slot.dir + 180) % 360})`"
+						>
+							<path
+								d="M0 -12 L-8 12 L0 8 L8 12 Z"
+								:fill="windSpeedColorHex(slot.average)"
+								:stroke="windSpeedColorHex(slot.max)"
+								stroke-width="1.6"
+								stroke-linejoin="round"
+							/>
+						</g>
+						<template v-for="row in [{ top: windTop, speed: slot.average }, { top: gustTop, speed: slot.max }]" :key="row.top">
+							<template v-if="row.speed != null">
+								<rect
+									:x="slot.x - slotWidth / 2 + 1"
+									:y="row.top"
+									:width="slotWidth - 2"
+									:height="layout.cellRow"
+									:fill="cellColors[windSpeedBand(row.speed)].bg"
+								/>
+								<text
+									:x="slot.x"
+									:y="row.top + layout.cellRow / 2 + 5"
+									text-anchor="middle"
+									font-size="14"
+									class="tabular-nums"
+									:fill="cellColors[windSpeedBand(row.speed)].text"
+								>{{ formatWindSpeed(row.speed) }}</text>
+							</template>
+						</template>
+						<rect
+							:x="slot.x - slotWidth / 2"
+							:y="plotTop"
+							:width="slotWidth"
+							:height="chartHeight - plotTop - layout.axisBottom"
+							fill="transparent"
+						>
+							<title>{{ slotTitle(slot) }}</title>
+						</rect>
+					</g>
 				</svg>
 			</div>
 
-			<div class="mt-4 border-t border-gray-100 pt-3">
-				<p class="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-					Stündliche Werte · Max / Durchschnitt (km/h)
-				</p>
-				<div class="flex gap-2 overflow-x-auto pb-1">
-					<div
-						v-for="point in hourlyReadings"
-						:key="point.ts"
-						class="min-w-[4.5rem] rounded-lg bg-gray-50 px-2 py-1.5 text-center"
-					>
-						<p class="text-xs tabular-nums text-gray-500">{{ formatHour(point.ts) }}</p>
-						<p class="mt-1 whitespace-nowrap text-xs tabular-nums">
-							<span :class="windSpeedColor(point.max, 'page')">{{ formatWindSpeed(point.max) }}</span>
-							<span class="text-gray-400"> / </span>
-							<span :class="windSpeedColor(point.average, 'page')">{{ formatWindSpeed(point.average) }}</span>
-						</p>
-					</div>
-				</div>
-			</div>
-		</template>
+			<svg :width="52" :height="chartHeight" class="block shrink-0" aria-hidden="true">
+				<text
+					v-for="tick in speedTicks"
+					:key="`label-${tick}`"
+					x="6"
+					:y="y(tick) + 4"
+					font-size="12"
+					fill="#374151"
+				>{{ tick }}</text>
+				<text x="6" :y="plotBottom + 18" font-size="12" fill="#374151">km/h</text>
+				<text x="6" :y="windTop + layout.cellRow / 2 + 5" font-size="13" fill="#111827">Wind</text>
+				<text x="6" :y="gustTop + layout.cellRow / 2 + 5" font-size="13" fill="#111827">Böen</text>
+			</svg>
+		</div>
 	</div>
 </template>
