@@ -1,4 +1,10 @@
 import { diffPressureByTime, type HourlyPressure } from '../utils/foehn-pressure-diff'
+import {
+	bozenTimeseriesUrl,
+	fetchBozenMeasuredHourly,
+	fetchInnsbruckMeasuredHourly,
+	innsbruckHistoryUrl,
+} from '../utils/foehn-measured-pressure'
 
 const BOZEN_LAT = 46.4977
 const BOZEN_LON = 11.3128
@@ -18,8 +24,11 @@ type FoehnSeriesPayload = {
 	unit: string
 	note: string
 	sources: {
+		measured: {
+			bozen: string
+			innsbruck: string
+		}
 		openMeteo: {
-			pastAnalysis: string
 			combinedForecast: string
 		}
 	}
@@ -86,8 +95,6 @@ function stalePayload(message: string): FoehnSeriesPayload {
 async function buildFoehnSeries(): Promise<FoehnSeriesPayload> {
 	const pastHours = 24
 	const forecastHours = 120
-	const urlBozenPast = openMeteoHourlyUrl(BOZEN_LAT, BOZEN_LON, pastHours, 0)
-	const urlInnPast = openMeteoHourlyUrl(INNSBRUCK_LAT, INNSBRUCK_LON, pastHours, 0)
 	const urlBozenCombo = openMeteoHourlyUrl(BOZEN_LAT, BOZEN_LON, pastHours, forecastHours)
 	const urlInnCombo = openMeteoHourlyUrl(INNSBRUCK_LAT, INNSBRUCK_LON, pastHours, forecastHours)
 
@@ -103,15 +110,25 @@ async function buildFoehnSeries(): Promise<FoehnSeriesPayload> {
 		}
 	}
 
-	const bozenPast = await fetchHourlyPressure(urlBozenPast)
-	await delay(OPEN_METEO_GAP_MS)
-	const innPast = await fetchHourlyPressure(urlInnPast)
-	await delay(OPEN_METEO_GAP_MS)
+	async function fetchMeasured(label: string, load: () => Promise<HourlyPressure>): Promise<HourlyPressure> {
+		try {
+			return await load()
+		} catch (e) {
+			console.error(`[foehn-series] measured pressure failed (${label}):`, e)
+			return {}
+		}
+	}
+
+	// Observation = real station readings; the model's own past hours are only the "pastForecast" line.
+	const [bozenMeasured, innMeasured] = await Promise.all([
+		fetchMeasured('bozen', () => fetchBozenMeasuredHourly(pastHours)),
+		fetchMeasured('innsbruck', () => fetchInnsbruckMeasuredHourly(pastHours)),
+	])
 	const bozenCombo = await fetchHourlyPressure(urlBozenCombo)
 	await delay(OPEN_METEO_GAP_MS)
 	const innCombo = await fetchHourlyPressure(urlInnCombo)
 
-	const obsMap = diffPressureByTime(bozenPast, innPast)
+	const obsMap = diffPressureByTime(bozenMeasured, innMeasured)
 	const comboMap = diffPressureByTime(bozenCombo, innCombo)
 	const comboTimes = [...comboMap.keys()].sort()
 	const first24 = new Set(comboTimes.slice(0, pastHours))
@@ -133,10 +150,13 @@ async function buildFoehnSeries(): Promise<FoehnSeriesPayload> {
 		pastHours,
 		forecastHours,
 		unit: 'hPa',
-		note: 'Beobachtung (rot): Open-Meteo Analyse der letzten 24 h. Violett und blau sind ein durchgehender best_match-Verlauf (24 h + 96 h in einem API-Lauf) – gleiche Vorhersage am Übergang, ohne Modellwechsel. Bei jedem Laden gilt der aktuelle Modellstand.',
+		note: 'Beobachtung: gemessener Luftdruck (reduziert) der Stationen Bozen (Landeswetterdienst Südtirol) und Innsbruck Flughafen (GeoSphere Austria), stündlich der letzten 24 h. Violett und blau sind ein durchgehender best_match-Verlauf (24 h + 96 h in einem API-Lauf) – gleiche Vorhersage am Übergang, ohne Modellwechsel. Bei jedem Laden gilt der aktuelle Modellstand.',
 		sources: {
+			measured: {
+				bozen: bozenTimeseriesUrl(pastHours),
+				innsbruck: innsbruckHistoryUrl(pastHours),
+			},
 			openMeteo: {
-				pastAnalysis: urlBozenPast,
 				combinedForecast: urlBozenCombo,
 			},
 		},
@@ -201,8 +221,11 @@ export default defineEventHandler(async (event) => {
 				unit: 'hPa',
 				note: 'Daten konnten nicht berechnet werden.',
 				sources: {
+					measured: {
+						bozen: bozenTimeseriesUrl(24),
+						innsbruck: innsbruckHistoryUrl(24),
+					},
 					openMeteo: {
-						pastAnalysis: openMeteoHourlyUrl(BOZEN_LAT, BOZEN_LON, 24, 0),
 						combinedForecast: openMeteoHourlyUrl(BOZEN_LAT, BOZEN_LON, 24, 120),
 					},
 				},

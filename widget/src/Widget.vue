@@ -997,6 +997,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 }
 
 .w-history-scroll {
+    padding-bottom: 3rem;
     min-width: 0;
     flex: 1;
     overflow-x: auto;

@@ -1,4 +1,5 @@
 import { diffPressureByTime, type HourlyPressure } from '../utils/foehn-pressure-diff'
+import { fetchInnsbruckMeasuredCurrent, innsbruckCurrentUrl } from '../utils/foehn-measured-pressure'
 
 type OpenMeteoCurrentResponse = {
 	current?: {
@@ -116,12 +117,18 @@ async function buildFoehnDiff(): Promise<FoehnDiffPayload> {
 		}
 	}
 
-	const bolzanoRes = await $fetch<{ rows?: any[] }>(bolzanoUrl, {
-		headers: { accept: 'application/json' },
-	}).catch((e) => {
-		console.error('[foehn-diff] SIAG failed:', e)
-		return {} as { rows?: any[] }
-	})
+	const [bolzanoRes, innsbruckMeasured] = await Promise.all([
+		$fetch<{ rows?: any[] }>(bolzanoUrl, {
+			headers: { accept: 'application/json' },
+		}).catch((e) => {
+			console.error('[foehn-diff] SIAG failed:', e)
+			return {} as { rows?: any[] }
+		}),
+		fetchInnsbruckMeasuredCurrent().catch((e) => {
+			console.error('[foehn-diff] GeoSphere failed:', e)
+			return null
+		}),
+	])
 
 	const omBozen = await fetchOpenMeteo<OpenMeteoCurrentResponse>(omBozenUrl, 'bozen-current')
 	await delay(OPEN_METEO_GAP_MS)
@@ -152,12 +159,19 @@ async function buildFoehnDiff(): Promise<FoehnDiffPayload> {
 			? (omBozen.current?.time ?? null)
 			: null
 
+	// Innsbruck: measured station value (GeoSphere), Open-Meteo model only as fallback
 	const omInnsbruckMsl = omInnsbruck.current?.pressure_msl
-	const innsbruckPressure =
-		omInnsbruckMsl != null && Number.isFinite(Number(omInnsbruckMsl))
+	const omInnsbruckValid = omInnsbruckMsl != null && Number.isFinite(Number(omInnsbruckMsl))
+	const innsbruckPressure = innsbruckMeasured
+		? Number(innsbruckMeasured.pressure.toFixed(1))
+		: omInnsbruckValid
 			? Number(Number(omInnsbruckMsl).toFixed(1))
 			: null
-	const innsbruckMeasuredAt = omInnsbruck.current?.time ?? null
+	const innsbruckMeasuredAt = innsbruckMeasured
+		? innsbruckMeasured.measuredAt
+		: omInnsbruckValid
+			? (omInnsbruck.current?.time ?? null)
+			: null
 
 	const differenceStation =
 		bolzanoPressure != null && innsbruckPressure != null
@@ -186,7 +200,7 @@ async function buildFoehnDiff(): Promise<FoehnDiffPayload> {
 				measuredAt: bolzanoMeasuredAt,
 			},
 			innsbruck: {
-				url: omInnsbruckUrl,
+				url: innsbruckMeasured ? innsbruckCurrentUrl() : omInnsbruckUrl,
 				measuredAt: innsbruckMeasuredAt,
 			},
 			modelForecastHour: {
@@ -244,7 +258,7 @@ export default defineEventHandler(async () => {
 						measuredAt: null,
 					},
 					innsbruck: {
-						url: openMeteoCurrentUrl(INNSBRUCK_LAT, INNSBRUCK_LON),
+						url: innsbruckCurrentUrl(),
 						measuredAt: null,
 					},
 					modelForecastHour: {
