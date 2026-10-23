@@ -10,6 +10,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "start": "nuxt start",
+    "deploy": "node deploy.js",
+    "deploy:coolify": "node deploy.js",
     "deploy:cloudflare": "yarn build && npx wrangler --cwd dist pages deploy . --branch master --project-name=weather",
     "preview:cloudflare": "yarn build && npx wrangler --cwd dist pages dev",
     "test:mongo": "node --env-file=.env scripts/test-mongo.js",

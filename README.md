@@ -72,4 +72,16 @@ yarn preview
 bun run preview
 ```
 
+## Deploy to Coolify
+
+Set `COOLIFY_DEPLOY_WEBHOOK_URL` and `COOLIFY_DEPLOY_TOKEN` in your local `.env` file. The webhook URL and token are credentials; do not commit them. See `.env.example` for the variable names.
+
+Trigger the configured Coolify deployment with:
+
+```bash
+yarn deploy
+```
+
+The command asks for confirmation before triggering the webhook. Use `yarn deploy --yes` to skip the confirmation. Coolify deploys the branch configured for the application; this command does not commit or push local changes.
+
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
