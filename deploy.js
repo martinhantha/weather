@@ -25,6 +25,12 @@ if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
 	process.exit(1)
 }
 
+const deploymentUuid = parsedUrl.searchParams.get('uuid')
+if (!deploymentUuid) {
+	console.error('COOLIFY_DEPLOY_WEBHOOK_URL must include the Coolify deployment UUID as ?uuid=…')
+	process.exit(1)
+}
+
 const args = process.argv.slice(2)
 let confirmed = args.includes('--yes') || args.includes('-y')
 
@@ -54,7 +60,13 @@ try {
 		},
 	})
 	if (!response.ok) {
-		throw new Error(`Coolify returned HTTP ${response.status}.`)
+		const responseBody = (await response.text())
+			.replaceAll(token, '[redacted]')
+			.replaceAll(deploymentUuid, '[redacted]')
+			.slice(0, 1000)
+		throw new Error(
+			`Coolify returned HTTP ${response.status}.${responseBody ? ` Response: ${responseBody}` : ''}`,
+		)
 	}
 	console.log('Coolify deployment triggered successfully.')
 } catch (error) {
