@@ -197,10 +197,14 @@ export default defineComponent({
 							  )
 							: null
 
-					return [
+					const widgetNodes = [
 						h(
 							'article',
-							{ class: 'w-card' },
+							{
+								'data-station-id': station.id,
+								class: 'w-card' + (props.selectedStationId === station.id ? ' w-card-selected' : ''),
+								onClick: props.onSelect ? () => props.onSelect?.(station.id) : undefined,
+							},
 							[
 								h('div', { class: 'w-card-inner' }, [
 									h('div', { class: 'w-card-top' }, [
@@ -231,6 +235,9 @@ export default defineComponent({
 							],
 						),
 					]
+					const afterStation = props.renderAfterStation?.(station)
+					if (afterStation) widgetNodes.push(afterStation)
+					return widgetNodes
 				})
 			)
 	},

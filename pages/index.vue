@@ -307,13 +307,13 @@ onBeforeUnmount(() => {
 
     <div
         v-if="isPichlbergChartOpen"
-        class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4 lg:flex"
+        class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4 lg:flex lg:px-[2vw] lg:py-[2vh]"
         role="presentation"
         @click.self="closeWindChart"
         @keydown.esc.window="closeWindChart"
     >
         <section
-            class="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6"
+            class="max-h-[96vh] w-full max-w-[1600px] overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6"
             role="dialog"
             aria-modal="true"
             aria-labelledby="pichlberg-wind-history-title"

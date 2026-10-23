@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { h, ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import type { ICondition, IStationConfig } from '../../types'
 import FoehnPressureChart from './FoehnPressureChart.vue'
+import WindHistoryChart, { type WindHistoryPoint } from './WindHistoryChart.vue'
 import WindStationGrid from '../../shared/components/WindStationGrid'
 import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS, SOUTH_TIROL_POLL_MS, WEATHERLINK_PICHLBERG_POLL_MS } from '../../shared/stations'
 
@@ -267,6 +268,65 @@ async function fetchAll() {
     }
 }
 
+type WindHistoryResponse = { from: number; to: number; points: WindHistoryPoint[] }
+
+const isPichlbergChartOpen = ref(false)
+const windHistory = ref<WindHistoryResponse | null>(null)
+const windHistoryPending = ref(false)
+const windHistoryError = ref(false)
+
+async function fetchWindHistory() {
+    const b = base()
+    if (!b) return
+    windHistoryPending.value = true
+    windHistoryError.value = false
+    try {
+        const res = await fetch(`${b}/api/measurement/history`, { signal: AbortSignal.timeout(10_000) })
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+        windHistory.value = await res.json()
+    } catch (e: any) {
+        windHistoryError.value = true
+        if (props.debug) log(`fetchWindHistory failed: ${e?.message || e}`)
+    } finally {
+        windHistoryPending.value = false
+    }
+}
+
+/** Only Pichlberg has a history chart; clicking it again closes the chart. */
+function selectStation(stationId: string) {
+    if (stationId !== '33570') return
+    isPichlbergChartOpen.value = !isPichlbergChartOpen.value
+    if (isPichlbergChartOpen.value) void fetchWindHistory()
+}
+
+function closeWindChart() {
+    isPichlbergChartOpen.value = false
+}
+
+function onKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') closeWindChart()
+}
+
+function renderWindHistoryContents() {
+    if (windHistoryError.value) {
+        return h('p', { class: 'w-history-message w-history-error' }, 'Der Windverlauf konnte nicht geladen werden.')
+    }
+    if (windHistoryPending.value) {
+        return h('p', { class: 'w-history-message' }, 'Windverlauf wird geladen …')
+    }
+    return h(WindHistoryChart, {
+        points: windHistory.value?.points ?? [],
+        from: windHistory.value?.from ?? Math.floor(Date.now() / 1000) - 24 * 60 * 60,
+        to: windHistory.value?.to ?? Math.floor(Date.now() / 1000),
+    })
+}
+
+/** Below 1024px the chart shows inline under the Pichlberg card instead of in the lightbox. */
+function renderWindHistoryAfterStation(station: IStationConfig) {
+    if (station.id !== '33570' || !isPichlbergChartOpen.value) return null
+    return h('div', { class: 'w-history-inline' }, [renderWindHistoryContents()])
+}
+
 /** Wird in `finally` gesetzt — für „Tab wieder aktiv“-Auffrischung */
 let lastFoehnFetchAt = 0
 
@@ -318,12 +378,15 @@ onMounted(() => {
     const t = setInterval(fetchAll, 2000)
     const tf = setInterval(tickFoehnIfVisible, FOEHN_POLL_MS)
     document.addEventListener('visibilitychange', onFoehnVisibility)
+    window.addEventListener('keydown', onKeydown)
     return () => {
         clearInterval(t)
         clearInterval(tf)
         document.removeEventListener('visibilitychange', onFoehnVisibility)
     }
 })
+
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
@@ -353,9 +416,33 @@ onMounted(() => {
                         :stations="STATIONS"
                         :liveStationIds="LIVE_STATION_IDS"
                         :getStationData="getStationData"
+                        :selectedStationId="isPichlbergChartOpen ? '33570' : undefined"
+                        :onSelect="selectStation"
+                        :renderAfterStation="renderWindHistoryAfterStation"
                     />
                 </div>
             </section>
+
+            <div v-if="isPichlbergChartOpen" class="w-lightbox" role="presentation" @click.self="closeWindChart">
+                <section class="w-lightbox-dialog" role="dialog" aria-modal="true" aria-labelledby="w-wind-history-title">
+                    <header class="w-lightbox-head">
+                        <h2 id="w-wind-history-title" class="w-lightbox-title">Pichlberg – Windverlauf</h2>
+                        <button type="button" class="w-lightbox-close" aria-label="Winddiagramm schließen" @click="closeWindChart">
+                            Schließen
+                        </button>
+                    </header>
+                    <p v-if="windHistoryError" class="w-history-message w-history-error">
+                        Der Windverlauf konnte nicht geladen werden.
+                    </p>
+                    <p v-else-if="windHistoryPending" class="w-history-message">Windverlauf wird geladen …</p>
+                    <WindHistoryChart
+                        v-else
+                        :points="windHistory?.points ?? []"
+                        :from="windHistory?.from ?? 0"
+                        :to="windHistory?.to ?? 0"
+                    />
+                </section>
+            </div>
 
             <section class="w-section w-foehn">
                 <div class="w-foehn-delta-row">
@@ -485,6 +572,15 @@ onMounted(() => {
     border-color: #7dd3fc;
     /* sky-300 */
     box-shadow: 0 1px 10px rgba(56, 189, 248, 0.2);
+}
+
+.w-card[data-station-id='33570'] {
+    cursor: pointer;
+}
+
+.w-card-selected {
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px #bae6fd;
 }
 
 .w-card-inner {
@@ -756,6 +852,167 @@ onMounted(() => {
 .w-foehn-axis-y {
     fill: #64748b;
     font-family: system-ui, sans-serif;
+}
+
+/* Pichlberg wind history: inline below the card on small screens, lightbox from 1024px */
+.w-history-inline {
+    grid-column: 1 / -1;
+}
+
+.w-lightbox {
+    display: none;
+}
+
+@media (min-width: 1024px) {
+    .w-history-inline {
+        display: none;
+    }
+
+    .w-lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2vh 2vw;
+        background: rgba(0, 0, 0, 0.5);
+    }
+}
+
+.w-lightbox-dialog {
+    width: 100%;
+    max-width: 1600px;
+    max-height: 96vh;
+    overflow-y: auto;
+    border-radius: 1em;
+    background: #fff;
+    padding: 1.5em;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.w-lightbox-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1em;
+    margin-bottom: 1em;
+}
+
+.w-lightbox-title {
+    margin: 0;
+    font-size: 1.125em;
+    font-weight: 600;
+    color: #111827;
+}
+
+.w-lightbox-close {
+    font: inherit;
+    font-size: 0.875em;
+    color: #374151;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5em;
+    padding: 0.375em 0.75em;
+    cursor: pointer;
+}
+
+.w-lightbox-close:hover {
+    background: #f9fafb;
+}
+
+.w-history {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75em;
+    background: #fff;
+    padding: 1em;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.w-history-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75em;
+    margin-bottom: 1em;
+}
+
+.w-history-title {
+    margin: 0;
+    font-size: 1em;
+    font-weight: 600;
+    color: #111827;
+}
+
+.w-history-subtitle {
+    margin: 0.25em 0 0;
+    font-size: 0.875em;
+    color: #6b7280;
+}
+
+.w-history-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em 1em;
+    font-size: 0.875em;
+    color: #374151;
+}
+
+.w-history-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+}
+
+.w-history-swatch {
+    display: inline-block;
+    width: 1.25em;
+    height: 1px;
+    background: #000;
+}
+
+.w-history-swatch-gust {
+    height: 3px;
+    border-radius: 2px;
+}
+
+.w-history-message {
+    margin: 0;
+    padding: 2em 1em;
+    border-radius: 0.5em;
+    background: #f9fafb;
+    text-align: center;
+    font-size: 0.875em;
+    color: #4b5563;
+}
+
+.w-history-error {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.w-history-body {
+    display: flex;
+}
+
+.w-history-scroll {
+    min-width: 0;
+    flex: 1;
+    overflow-x: auto;
+}
+
+.w-history-svg {
+    display: block;
+}
+
+.w-history-axis {
+    display: block;
+    flex-shrink: 0;
+}
+
+.w-history-cell {
+    font-variant-numeric: tabular-nums;
 }
 
 
