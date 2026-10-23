@@ -16,7 +16,7 @@ const props = defineProps<{
 }>()
 
 const SLOT_SEC = 10 * 60
-const slotWidth = 36
+const slotWidth = 30
 const layout = { axisTop: 24, plotHeight: 230, axisGap: 6, arrowRow: 34, cellRow: 30, cellGap: 6, axisBottom: 24 }
 const plotTop = layout.axisTop
 const plotBottom = plotTop + layout.plotHeight

@@ -924,11 +924,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 }
 
 .w-history {
-    border: 1px solid #e5e7eb;
     border-radius: 0.75em;
     background: #fff;
-    padding: 1em;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    padding: 1em 0;
 }
 
 .w-history-head {
