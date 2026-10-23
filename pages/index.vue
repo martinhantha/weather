@@ -1,16 +1,24 @@
 <script setup lang="ts">
-import { nextTick } from 'vue'
+import { h, nextTick } from 'vue'
 import { useMeasurement } from '~/composables/measurment'
 import type { IWeatherData, IMeasurement, IStationConfig, ICondition, INormalizedSouthTyrolStation } from '~/types'
 
 import WindStationGrid from '~/shared/components/WindStationGrid'
+import WindHistoryChart, { type WindHistoryPoint } from '~/components/WindHistoryChart.vue'
 import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS, SOUTH_TIROL_POLL_MS } from '~/shared/stations'
 import { formatWindSpeed, windSpeedColor as windSpeedColorShared, windSpeedColorHex, windDirDeg } from '~/shared/windDisplay'
 
 const SOUTH_TIROL_CODES = getSouthTyrolCodes()
+type WindHistoryResponse = { from: number; to: number; points: WindHistoryPoint[]; error?: string }
 
 const { data, refresh } = await useFetch('/api/measurement', { timeout: 8000 })
 const { data: windStationsData, refresh: refreshWindStations } = await useFetch<Record<string, { station_id: string; ts: number; condition: Partial<ICondition> }>>('/api/wind-stations', { timeout: 8000 })
+const {
+    data: windHistory,
+    pending: windHistoryPending,
+    error: windHistoryError,
+    refresh: refreshWindHistory,
+} = await useFetch<WindHistoryResponse>('/api/measurement/history', { immediate: false })
 const { data: southTyrolData, refresh: refreshSouthTyrol } = await useFetch<Record<string, INormalizedSouthTyrolStation>>(
     `/api/southtyrol/sensors?station_codes=${SOUTH_TIROL_CODES}`
 )
@@ -70,6 +78,7 @@ const { data: pioupiouByStationId, refresh: refreshPioupiou } = await useAsyncDa
 const summ = 270
 const weatherData = ref(<IWeatherData>{})
 const selectedStationId = ref('33570')
+const isPichlbergChartOpen = ref(false)
 const degrees = ref('-135deg')
 const degreesMax = ref('-135deg')
 const direction = ref('0deg')
@@ -155,6 +164,35 @@ let stationChoiceLocked = false
 function selectStation(stationId: string) {
     stationChoiceLocked = true
     selectedStationId.value = stationId
+    if (stationId === '33570') {
+        isPichlbergChartOpen.value = !isPichlbergChartOpen.value
+        if (isPichlbergChartOpen.value) void refreshWindHistory()
+    } else {
+        isPichlbergChartOpen.value = false
+    }
+}
+
+function renderWindHistoryContents() {
+    if (windHistoryError.value) {
+        return h('p', { class: 'rounded-lg bg-red-50 px-4 py-8 text-center text-sm text-red-700' }, 'Der Windverlauf konnte nicht geladen werden.')
+    }
+    if (windHistoryPending.value) {
+        return h('p', { class: 'rounded-lg bg-gray-50 px-4 py-8 text-center text-sm text-gray-600' }, 'Windverlauf wird geladen …')
+    }
+    return h(WindHistoryChart, {
+        points: windHistory.value?.points ?? [],
+        from: windHistory.value?.from ?? Math.floor(Date.now() / 1000) - 24 * 60 * 60,
+        to: windHistory.value?.to ?? Math.floor(Date.now() / 1000),
+    })
+}
+
+function renderWindHistoryAfterStation(station: IStationConfig) {
+    if (station.id !== '33570' || !isPichlbergChartOpen.value) return null
+    return h('div', { class: 'col-span-full lg:hidden' }, [renderWindHistoryContents()])
+}
+
+function closeWindChart() {
+    isPichlbergChartOpen.value = false
 }
 
 /** Pichlberg is the default. If it has no data, show the first station that does. */
@@ -262,9 +300,49 @@ onBeforeUnmount(() => {
                 :getStationData="getStationData"
                 :selectedStationId="selectedStationId"
                 :onSelect="selectStation"
+                :renderAfterStation="renderWindHistoryAfterStation"
             />
         </div>
     </section>
+
+    <div
+        v-if="isPichlbergChartOpen"
+        class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4 lg:flex"
+        role="presentation"
+        @click.self="closeWindChart"
+        @keydown.esc.window="closeWindChart"
+    >
+        <section
+            class="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pichlberg-wind-history-title"
+        >
+            <header class="mb-4 flex items-center justify-between gap-4">
+                <h2 id="pichlberg-wind-history-title" class="text-lg font-semibold text-gray-900">Pichlberg – Windverlauf</h2>
+                <button
+                    type="button"
+                    class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                    aria-label="Winddiagramm schließen"
+                    @click="closeWindChart"
+                >
+                    Schließen
+                </button>
+            </header>
+            <p v-if="windHistoryError" class="rounded-lg bg-red-50 px-4 py-8 text-center text-sm text-red-700">
+                Der Windverlauf konnte nicht geladen werden.
+            </p>
+            <p v-else-if="windHistoryPending" class="rounded-lg bg-gray-50 px-4 py-8 text-center text-sm text-gray-600">
+                Windverlauf wird geladen …
+            </p>
+            <WindHistoryChart
+                v-else
+                :points="windHistory?.points ?? []"
+                :from="windHistory?.from ?? 0"
+                :to="windHistory?.to ?? 0"
+            />
+        </section>
+    </div>
 
     <section v-if="foehnData?.contents?.[0]?.imageUrl" class="mt-8">
         <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">

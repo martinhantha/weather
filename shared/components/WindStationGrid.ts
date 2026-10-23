@@ -1,4 +1,4 @@
-import { Fragment, type PropType, h, defineComponent } from 'vue'
+import { Fragment, type PropType, type VNode, h, defineComponent } from 'vue'
 import type { ICondition, IStationConfig } from '../../types'
 import { STATION_MAX_AGE_SEC } from '../stations'
 import { degToDir, formatWindSpeed, windDirDeg, windSpeedColor, windSpeedColorHex } from '../windDisplay'
@@ -40,6 +40,10 @@ export default defineComponent({
 		},
 		onSelect: {
 			type: Function as PropType<((stationId: string) => void) | undefined>,
+			required: false,
+		},
+		renderAfterStation: {
+			type: Function as PropType<((station: IStationConfig) => VNode | null) | undefined>,
 			required: false,
 		},
 	},
@@ -101,7 +105,7 @@ export default defineComponent({
 								  )
 								: null
 
-						return [
+						const stationNodes = [
 							h(
 								'article',
 								{
@@ -154,6 +158,9 @@ export default defineComponent({
 								]
 							),
 						]
+						const afterStation = props.renderAfterStation?.(station)
+						if (afterStation) stationNodes.push(afterStation)
+						return stationNodes
 					}
 
 					// widget
@@ -228,4 +235,3 @@ export default defineComponent({
 			)
 	},
 })
-
