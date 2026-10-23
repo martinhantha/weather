@@ -4,7 +4,7 @@
  */
 import crypto from 'node:crypto'
 import type { ICondition } from '~/types'
-import { getPichlbergEmbedDisplay } from '../utils/pichlbergEmbed'
+import { getPichlbergEmbedDisplay } from '../../utils/pichlbergEmbed'
 
 const WL_URL = 'https://api.weatherlink.com/v2/current'
 
