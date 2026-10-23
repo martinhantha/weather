@@ -1,7 +1,10 @@
 /**
  * Fetch Pichlberg data and persist via POST /api/measurement (same flow as commit 11e07efe).
  * A dead station must not stall the server: short timeout, then back off.
+ * If the local station is unreachable, the WeatherLink embed summary is used instead.
  */
+import { getPichlbergEmbedMeasurement } from './pichlbergEmbed'
+
 const SOURCE_TIMEOUT_MS = 5_000
 const FAIL_BACKOFF_MS = 30_000
 let backoffUntil = 0
@@ -15,23 +18,26 @@ function internalApiBase(): string {
 }
 
 export async function readSaveMeasurement(): Promise<{ ok: boolean; error?: string }> {
-	if (Date.now() < backoffUntil) {
-		return { ok: false, error: 'Pichlberg unreachable' }
-	}
-
 	// Direct station URL is only reachable from 45.144.187.11.
 	// Elsewhere set PICHBERG_SOURCE_URL to the PHP proxy on that host (pichlberg.php).
 	const sourceUrl =
 		process.env.PICHBERG_SOURCE_URL?.trim() ||
 		'http://89.190.166.17:8081/v1/current_conditions'
 
-	let raw: unknown
-	try {
-		raw = await $fetch(sourceUrl, { timeout: SOURCE_TIMEOUT_MS })
-	} catch (error: unknown) {
-		backoffUntil = Date.now() + FAIL_BACKOFF_MS
-		console.error('[readSaveMeasurement] fetch failed:', (error as { data?: unknown })?.data ?? error)
-		return { ok: false, error: 'Pichlberg unreachable' }
+	let raw: unknown = null
+	if (Date.now() >= backoffUntil) {
+		try {
+			raw = await $fetch(sourceUrl, { timeout: SOURCE_TIMEOUT_MS })
+		} catch (error: unknown) {
+			backoffUntil = Date.now() + FAIL_BACKOFF_MS
+			console.error('[readSaveMeasurement] fetch failed:', (error as { data?: unknown })?.data ?? error)
+		}
+	}
+
+	if (!raw) {
+		const embed = await getPichlbergEmbedMeasurement()
+		if (!embed) return { ok: false, error: 'Pichlberg unreachable' }
+		raw = embed
 	}
 
 	let response: unknown = raw

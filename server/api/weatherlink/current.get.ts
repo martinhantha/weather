@@ -4,6 +4,7 @@
  */
 import crypto from 'node:crypto'
 import type { ICondition } from '~/types'
+import { getPichlbergEmbedDisplay } from '../utils/pichlbergEmbed'
 
 const WL_URL = 'https://api.weatherlink.com/v2/current'
 
@@ -199,7 +200,11 @@ export default defineEventHandler(async (event) => {
 
 	inflightMap.set(cacheKey, promise)
 	try {
-		const res = await promise
+		let res = await promise
+		if (stationId === '33570' && res.status !== 200) {
+			const embed = await getPichlbergEmbedDisplay()
+			if (embed) res = { status: 200, data: embed }
+		}
 		const ttl = res.status === 200 ? CACHE_TTL_MS : ERROR_CACHE_TTL_MS
 		cacheMap.set(cacheKey, { expiresAt: now + ttl, result: res })
 		setResponseStatus(event, res.status)

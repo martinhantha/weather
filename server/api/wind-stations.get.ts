@@ -15,8 +15,12 @@ function fahrenheitToCelsius(num: number): number {
 
 type WindStationsOut = Record<string, { station_id: string; ts: number; condition: Partial<ICondition> }>
 
+/** Local station readings older than this are not fresh enough to hide the WeatherLink embed. */
+const DB_FRESH_SEC = 3 * 60
+
 export default defineEventHandler(async (event): Promise<WindStationsOut> => {
 	const out: WindStationsOut = {}
+	let stale: WindStationsOut[string] | null = null
 
 	if (db.isConfigured(event)) {
 		try {
@@ -36,8 +40,12 @@ export default defineEventHandler(async (event): Promise<WindStationsOut> => {
 						hum: typeof c.hum === 'number' ? c.hum : undefined,
 						wet_bulb: c.wet_bulb != null ? fahrenheitToCelsius(Number(c.wet_bulb)) : undefined,
 					}
-					out['33570'] = { station_id: '33570', ts, condition }
-					return out
+					const row = { station_id: '33570', ts, condition }
+					if (Date.now() / 1000 - ts <= DB_FRESH_SEC) {
+						out['33570'] = row
+						return out
+					}
+					stale = row
 				}
 			}
 		} catch (_) {
@@ -89,5 +97,6 @@ export default defineEventHandler(async (event): Promise<WindStationsOut> => {
 		// ignore
 	}
 
+	if (!out['33570'] && stale) out['33570'] = stale
 	return out
 })
