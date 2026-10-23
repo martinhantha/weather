@@ -549,7 +549,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 .w-grid {
     display: grid;
-    grid-template-columns: 1fr;
+    /* minmax(0, …) so the wide wind history chart scrolls instead of stretching the column */
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.7em;
 }
 
@@ -857,6 +858,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 /* Pichlberg wind history: inline below the card on small screens, lightbox from 1024px */
 .w-history-inline {
     grid-column: 1 / -1;
+    min-width: 0;
 }
 
 .w-lightbox {
