@@ -640,9 +640,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 }
 
 .w-station-name {
+    display: flex;
+    align-items: center;
+    gap: 0.375em;
     font-weight: 600;
     margin: 0;
     color: #111827;
+}
+
+.w-history-icon {
+    width: 1em;
+    height: 1em;
+    flex-shrink: 0;
+    color: #0284c7;
+    /* sky-600 */
 }
 
 .w-card-meta {

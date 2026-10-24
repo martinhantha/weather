@@ -1,12 +1,32 @@
 import { Fragment, type PropType, type VNode, h, defineComponent } from 'vue'
 import type { ICondition, IStationConfig } from '../../types'
-import { STATION_MAX_AGE_SEC } from '../stations'
+import { STATION_MAX_AGE_SEC, WIND_HISTORY_PATHS } from '../stations'
 import { degToDir, formatWindSpeed, windDirDeg, windSpeedColor, windSpeedColorHex } from '../windDisplay'
 
 type StationData = { ts: number; condition: Partial<ICondition> }
 
 function formatTime(ts: number) {
 	return new Date(ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+}
+
+/** Small line-chart icon marking stations that open a 24h wind history. */
+function historyIcon(stationId: string, className: string): VNode | null {
+	if (!WIND_HISTORY_PATHS[stationId]) return null
+	return h(
+		'svg',
+		{
+			viewBox: '0 0 24 24',
+			fill: 'none',
+			stroke: 'currentColor',
+			'stroke-width': 2,
+			'stroke-linecap': 'round',
+			'stroke-linejoin': 'round',
+			class: className,
+			role: 'img',
+			'aria-label': 'Windverlauf verfügbar',
+		},
+		[h('title', null, 'Windverlauf der letzten 24 Stunden anzeigen'), h('path', { d: 'M3 3v18h18' }), h('path', { d: 'M7 15l4-4 3 3 6-7' })],
+	)
 }
 
 function isFresh(data: StationData | null): data is StationData {
@@ -118,7 +138,12 @@ export default defineComponent({
 								[
 									h('div', { class: 'space-y-3 border-gray-100' }, [
 										h('div', { class: 'flex items-start justify-between gap-3 border-b pb-4' }, [
-											h('div', { class: 'min-w-0 flex-1' }, [h('p', { class: 'text-base font-medium text-gray-900' }, station.name)]),
+											h('div', { class: 'min-w-0 flex-1' }, [
+												h('p', { class: 'flex items-center gap-1.5 text-base font-medium text-gray-900' }, [
+													station.name,
+													historyIcon(station.id, 'h-4 w-4 shrink-0 text-sky-600'),
+												]),
+											]),
 											h('div', { class: 'flex items-center justify-between text-base text-gray-600' }, [tempNode]),
 											h('div', { class: 'flex shrink-0 items-center gap-2' }, [timeNode, liveNode]),
 										]),
@@ -208,7 +233,7 @@ export default defineComponent({
 							[
 								h('div', { class: 'w-card-inner' }, [
 									h('div', { class: 'w-card-top' }, [
-										h('p', { class: 'w-station-name' }, station.name),
+										h('p', { class: 'w-station-name' }, [station.name, historyIcon(station.id, 'w-history-icon')]),
 										h('div', { class: 'w-card-top-right' }, [tempNode, timeNode, liveNode]),
 									]),
 									h('div', { class: 'w-card-bottom' }, [
