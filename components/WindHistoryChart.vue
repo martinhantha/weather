@@ -13,6 +13,7 @@ const props = defineProps<{
 	points: WindHistoryPoint[]
 	from: number
 	to: number
+	stationName?: string
 }>()
 
 const SLOT_SEC = 10 * 60
@@ -158,7 +159,7 @@ watch(() => props.points, scrollToLatest)
 		<header class="mb-4 flex flex-wrap items-start justify-between gap-3">
 			<div>
 				<h3 class="text-base font-semibold text-gray-900">Windverlauf – letzte 24 Stunden</h3>
-				<p class="mt-1 text-sm text-gray-500">Pichlberg · km/h · 10-Minuten-Werte</p>
+				<p class="mt-1 text-sm text-gray-500">{{ stationName ?? 'Pichlberg' }} · km/h · 10-Minuten-Werte</p>
 			</div>
 			<div class="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-700">
 				<span class="inline-flex items-center gap-2">

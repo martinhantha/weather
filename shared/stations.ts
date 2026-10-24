@@ -37,6 +37,12 @@ export const PIOUPIOU_STATION_IDS: string[] = STATIONS.filter((s) => s.source ==
  */
 export const LIVE_STATION_IDS = new Set(['33570', 'ISARNT29', 'ISARNT1', '2163'])
 
+/** Stations with a 24h wind history chart → API path serving `{ from, to, points }`. */
+export const WIND_HISTORY_PATHS: Record<string, string> = {
+	'33570': '/api/measurement/history',
+	'2163': '/api/pioupiou/history?stationId=2163',
+}
+
 export function getSouthTyrolCodes(): string {
 	return STATIONS.filter((s) => s.source === 'southtyrol')
 		.map((s) => s.station_code!)

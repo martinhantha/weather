@@ -5,7 +5,7 @@ import type { IWeatherData, IMeasurement, IStationConfig, ICondition, INormalize
 
 import WindStationGrid from '~/shared/components/WindStationGrid'
 import WindHistoryChart, { type WindHistoryPoint } from '~/components/WindHistoryChart.vue'
-import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS, SOUTH_TIROL_POLL_MS } from '~/shared/stations'
+import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS, SOUTH_TIROL_POLL_MS, WIND_HISTORY_PATHS } from '~/shared/stations'
 import { formatWindSpeed, windSpeedColor as windSpeedColorShared, windSpeedColorHex, windDirDeg } from '~/shared/windDisplay'
 
 const SOUTH_TIROL_CODES = getSouthTyrolCodes()
@@ -13,12 +13,18 @@ type WindHistoryResponse = { from: number; to: number; points: WindHistoryPoint[
 
 const { data, refresh } = await useFetch('/api/measurement', { timeout: 8000 })
 const { data: windStationsData, refresh: refreshWindStations } = await useFetch<Record<string, { station_id: string; ts: number; condition: Partial<ICondition> }>>('/api/wind-stations', { timeout: 8000 })
+/** Station whose wind history chart is open (null = closed). */
+const chartStationId = ref<string | null>(null)
+const chartStationName = computed(() => STATIONS.find((s) => s.id === chartStationId.value)?.name ?? '')
 const {
     data: windHistory,
     pending: windHistoryPending,
     error: windHistoryError,
     refresh: refreshWindHistory,
-} = await useFetch<WindHistoryResponse>('/api/measurement/history', { immediate: false })
+} = await useFetch<WindHistoryResponse>(() => WIND_HISTORY_PATHS[chartStationId.value ?? ''] ?? WIND_HISTORY_PATHS['33570']!, {
+    immediate: false,
+    watch: false,
+})
 const { data: southTyrolData, refresh: refreshSouthTyrol } = await useFetch<Record<string, INormalizedSouthTyrolStation>>(
     `/api/southtyrol/sensors?station_codes=${SOUTH_TIROL_CODES}`
 )
@@ -78,7 +84,6 @@ const { data: pioupiouByStationId, refresh: refreshPioupiou } = await useAsyncDa
 const summ = 270
 const weatherData = ref(<IWeatherData>{})
 const selectedStationId = ref('33570')
-const isPichlbergChartOpen = ref(false)
 const degrees = ref('-135deg')
 const degreesMax = ref('-135deg')
 const direction = ref('0deg')
@@ -164,11 +169,12 @@ let stationChoiceLocked = false
 function selectStation(stationId: string) {
     stationChoiceLocked = true
     selectedStationId.value = stationId
-    if (stationId === '33570') {
-        isPichlbergChartOpen.value = !isPichlbergChartOpen.value
-        if (isPichlbergChartOpen.value) void refreshWindHistory()
+    if (WIND_HISTORY_PATHS[stationId] && chartStationId.value !== stationId) {
+        chartStationId.value = stationId
+        windHistory.value = null
+        void refreshWindHistory()
     } else {
-        isPichlbergChartOpen.value = false
+        chartStationId.value = null
     }
 }
 
@@ -183,16 +189,17 @@ function renderWindHistoryContents() {
         points: windHistory.value?.points ?? [],
         from: windHistory.value?.from ?? Math.floor(Date.now() / 1000) - 24 * 60 * 60,
         to: windHistory.value?.to ?? Math.floor(Date.now() / 1000),
+        stationName: chartStationName.value,
     })
 }
 
 function renderWindHistoryAfterStation(station: IStationConfig) {
-    if (station.id !== '33570' || !isPichlbergChartOpen.value) return null
+    if (station.id !== chartStationId.value) return null
     return h('div', { class: 'col-span-full lg:hidden' }, [renderWindHistoryContents()])
 }
 
 function closeWindChart() {
-    isPichlbergChartOpen.value = false
+    chartStationId.value = null
 }
 
 /** Pichlberg is the default. If it has no data, show the first station that does. */
@@ -306,7 +313,7 @@ onBeforeUnmount(() => {
     </section>
 
     <div
-        v-if="isPichlbergChartOpen"
+        v-if="chartStationId"
         class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4 lg:flex lg:px-[2vw] lg:py-[2vh]"
         role="presentation"
         @click.self="closeWindChart"
@@ -316,10 +323,10 @@ onBeforeUnmount(() => {
             class="max-h-[96vh] w-full max-w-[1600px] overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="pichlberg-wind-history-title"
+            aria-labelledby="wind-history-title"
         >
             <header class="mb-4 flex items-center justify-between gap-4">
-                <h2 id="pichlberg-wind-history-title" class="text-lg font-semibold text-gray-900">Pichlberg – Windverlauf</h2>
+                <h2 id="wind-history-title" class="text-lg font-semibold text-gray-900">{{ chartStationName }} – Windverlauf</h2>
                 <button
                     type="button"
                     class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
@@ -340,6 +347,7 @@ onBeforeUnmount(() => {
                 :points="windHistory?.points ?? []"
                 :from="windHistory?.from ?? 0"
                 :to="windHistory?.to ?? 0"
+                :station-name="chartStationName"
             />
         </section>
     </div>

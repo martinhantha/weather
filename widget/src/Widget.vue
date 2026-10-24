@@ -4,7 +4,7 @@ import type { ICondition, IStationConfig } from '../../types'
 import FoehnPressureChart from './FoehnPressureChart.vue'
 import WindHistoryChart, { type WindHistoryPoint } from './WindHistoryChart.vue'
 import WindStationGrid from '../../shared/components/WindStationGrid'
-import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS, SOUTH_TIROL_POLL_MS, WEATHERLINK_PICHLBERG_POLL_MS } from '../../shared/stations'
+import { STATIONS, LIVE_STATION_IDS, getSouthTyrolCodes, WEATHERCLOUD_DEVICE_IDS, PIOUPIOU_STATION_IDS, SOUTH_TIROL_POLL_MS, WEATHERLINK_PICHLBERG_POLL_MS, WIND_HISTORY_PATHS } from '../../shared/stations'
 
 const props = withDefaults(
     defineProps<{ apiUrl: string; debug?: boolean }>(),
@@ -270,20 +270,24 @@ async function fetchAll() {
 
 type WindHistoryResponse = { from: number; to: number; points: WindHistoryPoint[] }
 
-const isPichlbergChartOpen = ref(false)
+/** Station whose wind history chart is open (null = closed). */
+const chartStationId = ref<string | null>(null)
+const chartStationName = computed(() => STATIONS.find((s) => s.id === chartStationId.value)?.name ?? '')
 const windHistory = ref<WindHistoryResponse | null>(null)
 const windHistoryPending = ref(false)
 const windHistoryError = ref(false)
 
-async function fetchWindHistory() {
+async function fetchWindHistory(stationId: string) {
     const b = base()
-    if (!b) return
+    const path = WIND_HISTORY_PATHS[stationId]
+    if (!b || !path) return
     windHistoryPending.value = true
     windHistoryError.value = false
     try {
-        const res = await fetch(`${b}/api/measurement/history`, { signal: AbortSignal.timeout(10_000) })
+        const res = await fetch(`${b}${path}`, { signal: AbortSignal.timeout(10_000) })
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-        windHistory.value = await res.json()
+        const data = await res.json()
+        if (chartStationId.value === stationId) windHistory.value = data
     } catch (e: any) {
         windHistoryError.value = true
         if (props.debug) log(`fetchWindHistory failed: ${e?.message || e}`)
@@ -292,15 +296,20 @@ async function fetchWindHistory() {
     }
 }
 
-/** Only Pichlberg has a history chart; clicking it again closes the chart. */
+/** Only stations in WIND_HISTORY_PATHS have a history chart; clicking again closes it. */
 function selectStation(stationId: string) {
-    if (stationId !== '33570') return
-    isPichlbergChartOpen.value = !isPichlbergChartOpen.value
-    if (isPichlbergChartOpen.value) void fetchWindHistory()
+    if (!WIND_HISTORY_PATHS[stationId]) return
+    if (chartStationId.value === stationId) {
+        chartStationId.value = null
+        return
+    }
+    chartStationId.value = stationId
+    windHistory.value = null
+    void fetchWindHistory(stationId)
 }
 
 function closeWindChart() {
-    isPichlbergChartOpen.value = false
+    chartStationId.value = null
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -318,12 +327,13 @@ function renderWindHistoryContents() {
         points: windHistory.value?.points ?? [],
         from: windHistory.value?.from ?? Math.floor(Date.now() / 1000) - 24 * 60 * 60,
         to: windHistory.value?.to ?? Math.floor(Date.now() / 1000),
+        stationName: chartStationName.value,
     })
 }
 
-/** Below 1024px the chart shows inline under the Pichlberg card instead of in the lightbox. */
+/** Below 1024px the chart shows inline under the station card instead of in the lightbox. */
 function renderWindHistoryAfterStation(station: IStationConfig) {
-    if (station.id !== '33570' || !isPichlbergChartOpen.value) return null
+    if (station.id !== chartStationId.value) return null
     return h('div', { class: 'w-history-inline' }, [renderWindHistoryContents()])
 }
 
@@ -416,17 +426,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                         :stations="STATIONS"
                         :liveStationIds="LIVE_STATION_IDS"
                         :getStationData="getStationData"
-                        :selectedStationId="isPichlbergChartOpen ? '33570' : undefined"
+                        :selectedStationId="chartStationId ?? undefined"
                         :onSelect="selectStation"
                         :renderAfterStation="renderWindHistoryAfterStation"
                     />
                 </div>
             </section>
 
-            <div v-if="isPichlbergChartOpen" class="w-lightbox" role="presentation" @click.self="closeWindChart">
+            <div v-if="chartStationId" class="w-lightbox" role="presentation" @click.self="closeWindChart">
                 <section class="w-lightbox-dialog" role="dialog" aria-modal="true" aria-labelledby="w-wind-history-title">
                     <header class="w-lightbox-head">
-                        <h2 id="w-wind-history-title" class="w-lightbox-title">Pichlberg – Windverlauf</h2>
+                        <h2 id="w-wind-history-title" class="w-lightbox-title">{{ chartStationName }} – Windverlauf</h2>
                         <button type="button" class="w-lightbox-close" aria-label="Winddiagramm schließen" @click="closeWindChart">
                             Schließen
                         </button>
@@ -440,6 +450,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                         :points="windHistory?.points ?? []"
                         :from="windHistory?.from ?? 0"
                         :to="windHistory?.to ?? 0"
+                        :station-name="chartStationName"
                     />
                 </section>
             </div>
@@ -575,7 +586,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     box-shadow: 0 1px 10px rgba(56, 189, 248, 0.2);
 }
 
-.w-card[data-station-id='33570'] {
+.w-card[data-station-id='33570'],
+.w-card[data-station-id='2163'] {
     cursor: pointer;
 }
 
@@ -855,7 +867,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     font-family: system-ui, sans-serif;
 }
 
-/* Pichlberg wind history: inline below the card on small screens, lightbox from 1024px */
+/* Wind history: inline below the card on small screens, lightbox from 1024px */
 .w-history-inline {
     grid-column: 1 / -1;
     min-width: 0;

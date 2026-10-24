@@ -3,6 +3,8 @@ import { defineNitroPlugin } from 'nitropack/runtime'
 import { useScheduler } from '#scheduler'
 import { isConfigured } from './utils/db'
 import { readSaveMeasurement } from './utils/readSaveMeasurement'
+import { savePioupiouHistory } from './utils/pioupiouHistory'
+import { PIOUPIOU_STATION_IDS } from '../shared/stations'
 
 export default defineNitroPlugin(async () => {
     const config = useRuntimeConfig()
@@ -39,5 +41,11 @@ export default defineNitroPlugin(async () => {
             })
             .everySeconds(2)
         console.log('[scheduler] Measurement poll every 2s (nuxt-scheduler)')
+
+        // Pioupiou (Leiter Spitz) publishes ~every 5 min; each run upserts the last day, so gaps refill.
+        const savePioupiou = () => Promise.all(PIOUPIOU_STATION_IDS.map((id) => savePioupiouHistory(id)))
+        void savePioupiou()
+        scheduler.run(savePioupiou).everyFiveMinutes()
+        console.log('[scheduler] Pioupiou wind history every 5min (nuxt-scheduler)')
     }
 })
